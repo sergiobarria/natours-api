@@ -1,9 +1,14 @@
-const colors = require('colors'); // eslint-disable-line
 const dotenv = require('dotenv');
-
-// dotenv config should be required before requiring the app
-dotenv.config({ path: './config.env' });
 const app = require('./app');
+const colors = require('colors'); // eslint-disable-line
+
+// Load env vars
+dotenv.config({ path: './config.env' });
+
+// Connect database
+const connectDB = require('./config/db');
+
+connectDB();
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
