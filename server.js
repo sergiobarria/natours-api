@@ -1,9 +1,10 @@
 const dotenv = require('dotenv');
-const app = require('./app');
 const colors = require('colors'); // eslint-disable-line
 
 // Load env vars
 dotenv.config({ path: './config.env' });
+
+const app = require('./app');
 
 // Connect database
 const connectDB = require('./config/db');
