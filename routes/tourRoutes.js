@@ -8,8 +8,8 @@ const {
   aliasTopTours,
   getTourStats,
   getMonthlyPlan,
-} = require('../controllers/tourControllers');
-const { protect, restrictTo } = require('../controllers/authControllers');
+} = require('../controllers/tourController');
+const { protect, restrictTo } = require('../controllers/authController');
 
 const router = express.Router();
 

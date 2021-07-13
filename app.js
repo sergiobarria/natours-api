@@ -8,11 +8,12 @@ const xss = require('xss-clean');
 const hpp = require('hpp');
 
 const AppError = require('./utils/appError');
-const globalErrorHandler = require('./controllers/errorControllers');
+const globalErrorHandler = require('./controllers/errorController');
 
 // Import routers
 const tourRouter = require('./routes/tourRoutes');
 const userRouter = require('./routes/userRoutes');
+const reviewRouter = require('./routes/reviewRoutes');
 
 // Start express app
 const app = express();
@@ -60,6 +61,7 @@ app.use(
 // Mounting Routes
 app.use('/api/v1/tours', tourRouter);
 app.use('/api/v1/users', userRouter);
+app.use('/api/v1/reviews', reviewRouter);
 
 // Handle url not found
 app.all('*', (req, res, next) => {
