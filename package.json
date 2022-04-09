@@ -10,7 +10,9 @@
     "start": "node src/server.js",
     "dev": "yarn swagger-autogen && nodemon --experimental-json-modules src/server.js",
     "swagger-autogen": "node ./swagger.js",
-    "prestart": "yarn swagger-autogen"
+    "prestart": "yarn swagger-autogen",
+    "seed:import": "node --experimental-json-modules dev-data/data/seeder.js --import",
+    "seed:delete": "node --experimental-json-modules dev-data/data/seeder.js --delete"
   },
   "dependencies": {
     "axios": "^0.26.1",
