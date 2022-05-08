@@ -1,6 +1,7 @@
 import asyncHandler from 'express-async-handler';
-import { Tour } from '../models/tour.model.js';
+import { Tour } from '../models/Tour.model.js';
 import { APIFeatures } from '../utils/apiFeatures.js';
+import { APIError } from '../utils/apiError.js';
 
 /**
  * @description   Fetch top 5 tours middleware
@@ -19,13 +20,14 @@ export const aliasTopTours = asyncHandler(async (req, res, next) => {
  * @route         GET /api/v1/tours
  * @access        Public
  */
-export const getTours = asyncHandler(async (req, res) => {
+export const getTours = asyncHandler(async (req, res, next) => {
   // Execute query
   const features = new APIFeatures(Tour.find(), req.query)
     .filter()
     .sort()
     .limitFields()
     .paginate();
+
   const tours = await features.query;
 
   res.status(200).json({
@@ -40,11 +42,11 @@ export const getTours = asyncHandler(async (req, res) => {
  * @route         POST /api/v1/tours
  * @access        Public
  */
-export const createTour = asyncHandler(async (req, res) => {
+export const createTour = asyncHandler(async (req, res, next) => {
   const tour = await Tour.create(req.body);
 
   res.status(201).json({
-    status: 'succes',
+    status: 'success',
     data: { tour },
   });
 });
@@ -54,19 +56,16 @@ export const createTour = asyncHandler(async (req, res) => {
  * @route         GET /api/v1/tours/:id
  * @access        Public
  */
-export const getTour = asyncHandler(async (req, res) => {
+export const getTour = asyncHandler(async (req, res, next) => {
   const { id } = req.params;
   const tour = await Tour.findById(id);
 
   if (!tour) {
-    res.status(404).json({
-      status: 'fail',
-      data: null,
-    });
+    return next(new APIError('No tour found with that ID', 404));
   }
 
   res.status(200).json({
-    status: 'succes',
+    status: 'success',
     data: { tour },
   });
 });
@@ -76,12 +75,16 @@ export const getTour = asyncHandler(async (req, res) => {
  * @route         PATCH /api/v1/tours/:id
  * @access        Public
  */
-export const updateTour = asyncHandler(async (req, res) => {
+export const updateTour = asyncHandler(async (req, res, next) => {
   const { id } = req.params;
   const tour = await Tour.findByIdAndUpdate(id, req.body, {
     new: true,
     runValidators: true,
   });
+
+  if (!tour) {
+    return next(new APIError('No tour found with that ID', 404));
+  }
 
   res.status(200).json({
     status: 'success',
@@ -94,9 +97,13 @@ export const updateTour = asyncHandler(async (req, res) => {
  * @route         DELETE /api/v1/tours/:id
  * @access        Public
  */
-export const deleteTour = asyncHandler(async (req, res) => {
+export const deleteTour = asyncHandler(async (req, res, next) => {
   const { id } = req.params;
-  await Tour.findByIdAndDelete(id);
+  const tour = await Tour.findByIdAndDelete(id);
+
+  if (!tour) {
+    return next(new APIError('No tour found with that ID', 404));
+  }
 
   res.status(204).json({
     status: 'success',
@@ -109,7 +116,7 @@ export const deleteTour = asyncHandler(async (req, res) => {
  * @route         GET /api/v1/tours/:id
  * @access        Public
  */
-export const getTourStats = asyncHandler(async (req, res) => {
+export const getTourStats = asyncHandler(async (req, res, next) => {
   const stats = await Tour.aggregate([
     {
       $match: { ratingsAverage: { $gte: 4.5 } },
@@ -147,7 +154,7 @@ export const getTourStats = asyncHandler(async (req, res) => {
  * @route         DELETE /api/v1/tours/monthly-plan/:year
  * @access        Public
  */
-export const getMonthlyPlan = asyncHandler(async (req, res) => {
+export const getMonthlyPlan = asyncHandler(async (req, res, next) => {
   const { year } = req.params * 1;
 
   const plan = await Tour.arguments([
