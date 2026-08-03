@@ -1,6 +1,8 @@
 # Operations Guide
 
-The current production artifact is the NestJS HTTP API. Configuration is validated at startup and credentials remain outside version control. PostgreSQL, Redis, workers, and schedulers described below are target capabilities; promote them to current requirements only when implemented.
+The current production artifact is the NestJS HTTP API with PostgreSQL persistence through a
+bounded Drizzle/node-postgres pool. Configuration is validated at startup and credentials remain
+outside version control. Redis, workers, and schedulers described below remain target capabilities.
 
 ## Environment baseline
 
@@ -13,12 +15,18 @@ PORT=3000
 LOG_LEVEL=info
 CORS_ORIGINS=https://www.example.com
 DATABASE_URL=postgresql://...
+DATABASE_POOL_MAX=10
+DATABASE_POOL_IDLE_TIMEOUT_MS=30000
+DATABASE_POOL_CONNECTION_TIMEOUT_MS=5000
 REDIS_URL=redis://...
 BETTER_AUTH_URL=https://api.example.com
 BETTER_AUTH_SECRET=
 ```
 
-Only `NODE_ENV`, `HOST`, `PORT`, `LOG_LEVEL`, and `CORS_ORIGINS` are implemented today. Production startup requires an explicit comma-separated CORS allowlist. Add and validate the remaining variables alongside their integrations. Better Auth secrets require at least 32 high-entropy characters and deliberate rotation procedures.
+`DATABASE_URL` and the bounded pool settings are implemented alongside the HTTP configuration.
+Production startup requires an explicit comma-separated CORS allowlist. Add and validate the
+remaining variables alongside their integrations. Better Auth secrets require at least 32
+high-entropy characters and deliberate rotation procedures.
 
 ## Deployment process
 
@@ -51,7 +59,8 @@ Jobs are idempotent, use bounded retries and backoff, emit structured failures, 
 - Healthy liveness returns `200` using the standard Terminus response.
 - Add dependency indicators and, if needed, a distinct readiness route when PostgreSQL or Redis is implemented.
 
-Graceful shutdown hooks are enabled. Future readiness checks should be bounded and should not make the liveness route dependent on external systems.
+Graceful shutdown hooks close the PostgreSQL pool. Future readiness checks should be bounded and
+should not make the liveness route dependent on external systems.
 
 Monitor latency and errors, PostgreSQL pool saturation and locks, Redis availability, job age/failures, scheduler execution, Stripe webhook lag/failures, unresolved booking states, storage errors, and memory/event-loop health.
 

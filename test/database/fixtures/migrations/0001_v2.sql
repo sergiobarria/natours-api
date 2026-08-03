@@ -1,0 +1,1 @@
+ALTER TABLE "persistence_records" ADD COLUMN "label" text DEFAULT 'fixture' NOT NULL;

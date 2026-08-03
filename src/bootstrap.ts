@@ -1,8 +1,9 @@
 import { INestApplication, ValidationPipe, VersioningType } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import helmet from 'helmet';
-import { AppConfigService } from './config/app-config.service';
-import { Environment } from './config/environment';
+import { AppConfigService } from './config/app-config.service.js';
+import { APP_ENVIRONMENT } from './config/config.constants.js';
+import { Environment } from './config/environment.js';
 
 export const API_PREFIX = 'api';
 export const API_VERSION = '1';
@@ -68,5 +69,5 @@ export async function configureApplication(
 }
 
 export function isApiDocsEnabled(environment: Environment['NODE_ENV']): boolean {
-  return environment !== 'production';
+  return environment !== APP_ENVIRONMENT.production;
 }

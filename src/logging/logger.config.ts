@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { Params } from 'nestjs-pino';
-import { AppConfigService } from '../config/app-config.service';
+import { AppConfigService } from '../config/app-config.service.js';
+import { ENVIRONMENT_VARIABLES } from '../config/config.constants.js';
 
 const requestIdPattern = /^[A-Za-z0-9._:-]{1,128}$/;
 
@@ -33,7 +34,7 @@ export function createLoggerOptions(config: AppConfigService): Params {
           'token',
           'accessToken',
           'refreshToken',
-          'DATABASE_URL',
+          ENVIRONMENT_VARIABLES.databaseUrl,
           'REDIS_URL',
         ],
         censor: '[Redacted]',

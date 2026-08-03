@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { ENVIRONMENT_VARIABLES } from './config.constants';
-import { Environment } from './environment';
+import { APP_ENVIRONMENT, ENVIRONMENT_VARIABLES } from './config.constants.js';
+import { Environment } from './environment.js';
 
 @Injectable()
 export class AppConfigService {
@@ -27,11 +27,29 @@ export class AppConfigService {
     return this.config.get(ENVIRONMENT_VARIABLES.corsOrigins, { infer: true });
   }
 
+  get databaseUrl(): string {
+    return this.config.get(ENVIRONMENT_VARIABLES.databaseUrl, { infer: true });
+  }
+
+  get databasePoolMax(): number {
+    return this.config.get(ENVIRONMENT_VARIABLES.databasePoolMax, { infer: true });
+  }
+
+  get databasePoolIdleTimeoutMs(): number {
+    return this.config.get(ENVIRONMENT_VARIABLES.databasePoolIdleTimeoutMs, { infer: true });
+  }
+
+  get databasePoolConnectionTimeoutMs(): number {
+    return this.config.get(ENVIRONMENT_VARIABLES.databasePoolConnectionTimeoutMs, {
+      infer: true,
+    });
+  }
+
   get isDevelopment(): boolean {
-    return this.environment === 'development';
+    return this.environment === APP_ENVIRONMENT.development;
   }
 
   get isProduction(): boolean {
-    return this.environment === 'production';
+    return this.environment === APP_ENVIRONMENT.production;
   }
 }
