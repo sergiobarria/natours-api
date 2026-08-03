@@ -48,6 +48,7 @@ export async function purgeDatabase(pool: Pool, databaseUrl: string): Promise<nu
       SELECT format('%I.%I', schemaname, tablename) AS identifier
       FROM pg_tables
       WHERE schemaname = 'public'
+        AND tablename <> 'audit_events'
       ORDER BY tablename
     `);
 

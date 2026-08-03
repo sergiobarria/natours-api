@@ -8,4 +8,9 @@ export const PROCESS_ROLE = {
   worker: 'worker',
 } as const;
 
+export const PLATFORM_JOB = {
+  healthSnapshot: 'platform.health-snapshot',
+  operationsPrune: 'platform.operations-prune',
+} as const;
+
 export type ProcessRole = (typeof PROCESS_ROLE)[keyof typeof PROCESS_ROLE];

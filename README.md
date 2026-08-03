@@ -79,10 +79,11 @@ pnpm jobs:replay --id=<job-id> --state=failed
 The initial HTTP surface is:
 
 - `GET /api/v1` — API discovery response
-- `GET /health` — unversioned process health
+- `GET /health` — dependency-free, unversioned liveness
+- `GET /ready` — PostgreSQL, Redis, worker, and scheduler readiness
 - `/docs` and `/docs-json` — Scalar API reference and OpenAPI JSON outside production
 
-Configuration is validated at startup. Production requires an explicit comma-separated `CORS_ORIGINS` allowlist. Requests accept an optional `x-request-id`; the API returns that ID (or a generated UUID) and includes it in structured logs.
+Configuration is validated at startup. Production requires an explicit comma-separated `CORS_ORIGINS` allowlist. Requests accept an optional `x-request-id`; the API returns that ID (or a generated UUID) and includes it in structured logs. Deploy the API, worker, and scheduler separately and route traffic only to ready API instances.
 
 ## Quality checks
 

@@ -2,6 +2,12 @@ const sensitiveAssignment =
   /\b(password|secret|token|authorization|cookie|credential|verification|recovery)(\s*[:=]\s*)([^\s,;]+)/gi;
 const bearerToken = /\bBearer\s+[^\s,;]+/gi;
 const urlCredentials = /(\w+:\/\/[^:\s/@]+:)[^@\s/]+@/gi;
+const sensitiveFieldName =
+  /password|confirmation|authorization|cookie|session|token|verification|recovery|secret|credential|connection|databaseurl|redisurl/i;
+
+export function isSensitiveFieldName(name: string): boolean {
+  return sensitiveFieldName.test(name.replaceAll('_', ''));
+}
 
 export function sanitizeOperationalText(value: string): string {
   return value

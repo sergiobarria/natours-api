@@ -11,6 +11,11 @@ import { JOB_DISPATCHER, JOB_QUEUE, OUTBOX } from './job.constants.js';
 import { JobQueueLifecycle } from './job-queue.lifecycle.js';
 import { JobRegistry } from './job.registry.js';
 import { DrizzleTransactionalOutbox } from './transactional-outbox.js';
+import {
+  HealthSnapshotJob,
+  OperationalJobRegistrar,
+  OperationsPruneJob,
+} from './operational-jobs.js';
 
 const clockProvider: Provider = {
   provide: CLOCK,
@@ -38,6 +43,9 @@ const queueProvider: Provider<Queue> = {
     BullJobDispatcher,
     DrizzleTransactionalOutbox,
     JobQueueLifecycle,
+    HealthSnapshotJob,
+    OperationsPruneJob,
+    OperationalJobRegistrar,
     { provide: JOB_DISPATCHER, useExisting: BullJobDispatcher },
     { provide: OUTBOX, useExisting: DrizzleTransactionalOutbox },
   ],

@@ -5,11 +5,14 @@ import { Redis } from 'ioredis';
 import { z } from 'zod';
 import type { AppConfigService } from '../../src/config/app-config.service.js';
 import { DatabaseUnitOfWork } from '../../src/database/database-unit-of-work.js';
+import { healthHistory } from '../../src/database/schema/operations.js';
 import { jobEffects } from '../../src/database/schema/platform-jobs.js';
 import { BullJobDispatcher } from '../../src/platform/jobs/bull-job-dispatcher.js';
 import { JobOperationsService } from '../../src/platform/jobs/job-operations.service.js';
 import { JobSchedulerLifecycle } from '../../src/platform/jobs/job-scheduler.lifecycle.js';
 import { JobWorkerLifecycle } from '../../src/platform/jobs/job-worker.lifecycle.js';
+import { HealthSnapshotJob, OperationsPruneJob } from '../../src/platform/jobs/operational-jobs.js';
+import { RedisThrottlerStorage } from '../../src/rate-limit/redis-throttler.storage.js';
 import { JobRegistry } from '../../src/platform/jobs/job.registry.js';
 import { purgeDatabase } from '../../scripts/database/purge-database.js';
 import { createTestDatabase, type TestDatabase } from '../database/test-database.js';
@@ -39,6 +42,7 @@ describe('Redis and BullMQ platform jobs', () => {
   let dispatcher: BullJobDispatcher;
   let operations: JobOperationsService;
   let registry: JobRegistry;
+  let unitOfWork: DatabaseUnitOfWork;
   let calls = 0;
   let failuresRemaining = 0;
 
@@ -54,6 +58,7 @@ describe('Redis and BullMQ platform jobs', () => {
     jobsRemoveOnComplete: { age: 60, count: 100 },
     jobsRemoveOnFail: { age: 60, count: 100 },
     jobsWorkerConcurrency: 2,
+    healthHistoryRetentionDays: 30,
     redisKeyPrefix: `natours-test-${suffix}`,
   } as AppConfigService;
 
@@ -93,7 +98,7 @@ describe('Redis and BullMQ platform jobs', () => {
       schema: z.object({ value: z.string() }),
     });
 
-    const unitOfWork = new DatabaseUnitOfWork(testDatabase.database);
+    unitOfWork = new DatabaseUnitOfWork(testDatabase.database);
     worker = new JobWorkerLifecycle(
       config,
       registry,
@@ -185,5 +190,40 @@ describe('Redis and BullMQ platform jobs', () => {
     const schedulers = await queue.getJobSchedulers();
 
     expect(schedulers.filter(item => item.key === 'fixture-effect-schedule')).toHaveLength(1);
+  });
+
+  it('increments and blocks distributed rate limits atomically', async () => {
+    const firstInstance = new RedisThrottlerStorage(producer, config);
+    const secondInstance = new RedisThrottlerStorage(producer, config);
+    const key = `rate-fixture-${suffix}`;
+    expect((await firstInstance.increment(key, 1_000, 2, 2_000, 'global')).isBlocked).toBe(false);
+    expect((await secondInstance.increment(key, 1_000, 2, 2_000, 'global')).isBlocked).toBe(false);
+    const blocked = await firstInstance.increment(key, 1_000, 2, 2_000, 'global');
+    expect(blocked.isBlocked).toBe(true);
+    expect(blocked.timeToBlockExpire).toBeGreaterThan(0);
+  });
+
+  it('records sanitized dependency history and prunes only expired observations', async () => {
+    const snapshot = new HealthSnapshotJob(producer);
+    await unitOfWork.transaction(context => snapshot.execute({}, context));
+    expect(await testDatabase.database.select().from(healthHistory)).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ component: 'postgres', status: 'up' }),
+        expect.objectContaining({ component: 'redis', status: 'up' }),
+      ]),
+    );
+    await testDatabase.database.insert(healthHistory).values({
+      component: 'redis',
+      latencyMs: 1,
+      observedAt: new Date('2000-01-01T00:00:00.000Z'),
+      status: 'up',
+    });
+    const prune = new OperationsPruneJob(config);
+    await unitOfWork.transaction(context => prune.execute({}, context));
+    expect(
+      (await testDatabase.database.select().from(healthHistory)).every(
+        row => row.observedAt.getUTCFullYear() > 2000,
+      ),
+    ).toBe(true);
   });
 });

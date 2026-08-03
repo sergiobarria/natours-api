@@ -37,6 +37,26 @@ JOBS_REMOVE_ON_FAIL_COUNT=5000
 OUTBOX_POLL_INTERVAL_MS=1000
 OUTBOX_BATCH_SIZE=100
 PROCESS_SHUTDOWN_TIMEOUT_MS=10000
+TRUSTED_PROXY_CIDRS=10.0.0.0/8
+RATE_LIMIT_GLOBAL_LIMIT=100
+RATE_LIMIT_GLOBAL_TTL_MS=60000
+RATE_LIMIT_GLOBAL_BLOCK_MS=60000
+RATE_LIMIT_AUTH_LIMIT=10
+RATE_LIMIT_AUTH_TTL_MS=60000
+RATE_LIMIT_AUTH_BLOCK_MS=300000
+RATE_LIMIT_ACCOUNT_LIMIT=30
+RATE_LIMIT_ACCOUNT_TTL_MS=60000
+RATE_LIMIT_ACCOUNT_BLOCK_MS=60000
+RATE_LIMIT_WEBHOOK_LIMIT=120
+RATE_LIMIT_WEBHOOK_TTL_MS=60000
+RATE_LIMIT_WEBHOOK_BLOCK_MS=60000
+READINESS_TIMEOUT_MS=2000
+WORKER_HEARTBEAT_INTERVAL_MS=5000
+SCHEDULER_HEARTBEAT_INTERVAL_MS=5000
+PROCESS_HEARTBEAT_TTL_SECONDS=15
+HEALTH_SNAPSHOT_SCHEDULE=*/5 * * * *
+OPERATIONS_PRUNE_SCHEDULE=0 3 * * *
+HEALTH_HISTORY_RETENTION_DAYS=30
 BETTER_AUTH_URL=https://api.example.com
 BETTER_AUTH_SECRET=
 ```
@@ -90,12 +110,29 @@ must survive a crash.
 
 - `GET /health` is a version-neutral Terminus liveness probe and performs no external calls.
 - Healthy liveness returns `200` using the standard Terminus response.
-- Add dependency indicators and, if needed, a distinct readiness route when PostgreSQL or Redis is implemented.
+- `GET /ready` checks bounded PostgreSQL and Redis probes plus fresh, instance-specific worker and
+  scheduler heartbeats. One live instance per role satisfies readiness. Dependency outages never
+  make liveness fail.
 
 Graceful shutdown hooks stop queue intake and polling, wait up to the configured shutdown bound,
 then close BullMQ, Redis, and PostgreSQL connections. Keep the process termination grace period
-longer than `PROCESS_SHUTDOWN_TIMEOUT_MS`. Readiness is added in Stage 2; liveness never gains an
-external dependency.
+longer than `PROCESS_SHUTDOWN_TIMEOUT_MS`. Liveness never gains an external dependency.
+
+Configure `TRUSTED_PROXY_CIDRS` only with known proxy networks. Guest rate-limit identity uses
+Express's resolved IP and never reads forwarded headers directly. Redis-backed policies are atomic
+and fail guarded traffic closed with `503` if Redis is unavailable.
+
+Audit events are inserted through `AuditRecorder` in the same transaction as required mutations.
+PostgreSQL rejects update, delete, and truncate operations on `audit_events`; purge/reset preserves
+the table. Action allowlists and recursive redaction exclude credentials, secrets, tokens,
+verification/recovery values, and unnecessary personal data. Audit history is never automatically
+pruned and must follow the required legal and business retention policy.
+
+Dependency history stores only component, status, timestamp, and latency.
+`HEALTH_HISTORY_RETENTION_DAYS` controls its idempotent pruning job. Alert on failed readiness,
+stale heartbeats, outbox growth, retained failed jobs, and rate-limit storage failures. PostgreSQL
+backups must support tested point-in-time recovery. Configure Redis durability for the deployment;
+the PostgreSQL outbox remains the source of truth for crash-durable dispatch.
 
 Domain responses use the documented success/error envelopes. Unexpected exceptions are logged
 with internal context while clients receive only a safe `INTERNAL_SERVER_ERROR` response and the

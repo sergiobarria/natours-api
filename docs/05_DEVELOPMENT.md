@@ -31,7 +31,8 @@ pnpm start:worker
 pnpm start:scheduler
 ```
 
-The API root is `/api/v1`; the version-neutral health probe is `/health`. Scalar API reference (`/docs`) and OpenAPI JSON (`/docs-json`) are disabled in production.
+The API root is `/api/v1`; version-neutral liveness is `/health` and dependency/process readiness is
+`/ready`. Scalar API reference (`/docs`) and OpenAPI JSON (`/docs-json`) are disabled in production.
 
 ## Quality workflow
 

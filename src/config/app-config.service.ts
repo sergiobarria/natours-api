@@ -119,6 +119,73 @@ export class AppConfigService {
     return this.config.get(ENVIRONMENT_VARIABLES.processShutdownTimeoutMs, { infer: true });
   }
 
+  get trustedProxyCidrs(): string[] {
+    return this.config
+      .get(ENVIRONMENT_VARIABLES.trustedProxyCidrs, { infer: true })
+      .split(',')
+      .map(value => value.trim())
+      .filter(Boolean);
+  }
+
+  get rateLimits() {
+    return {
+      global: {
+        limit: this.config.get(ENVIRONMENT_VARIABLES.rateLimitGlobalLimit, { infer: true }),
+        ttl: this.config.get(ENVIRONMENT_VARIABLES.rateLimitGlobalTtlMs, { infer: true }),
+        blockDuration: this.config.get(ENVIRONMENT_VARIABLES.rateLimitGlobalBlockMs, {
+          infer: true,
+        }),
+      },
+      authentication: {
+        limit: this.config.get(ENVIRONMENT_VARIABLES.rateLimitAuthLimit, { infer: true }),
+        ttl: this.config.get(ENVIRONMENT_VARIABLES.rateLimitAuthTtlMs, { infer: true }),
+        blockDuration: this.config.get(ENVIRONMENT_VARIABLES.rateLimitAuthBlockMs, { infer: true }),
+      },
+      account: {
+        limit: this.config.get(ENVIRONMENT_VARIABLES.rateLimitAccountLimit, { infer: true }),
+        ttl: this.config.get(ENVIRONMENT_VARIABLES.rateLimitAccountTtlMs, { infer: true }),
+        blockDuration: this.config.get(ENVIRONMENT_VARIABLES.rateLimitAccountBlockMs, {
+          infer: true,
+        }),
+      },
+      webhook: {
+        limit: this.config.get(ENVIRONMENT_VARIABLES.rateLimitWebhookLimit, { infer: true }),
+        ttl: this.config.get(ENVIRONMENT_VARIABLES.rateLimitWebhookTtlMs, { infer: true }),
+        blockDuration: this.config.get(ENVIRONMENT_VARIABLES.rateLimitWebhookBlockMs, {
+          infer: true,
+        }),
+      },
+    };
+  }
+
+  get readinessTimeoutMs(): number {
+    return this.config.get(ENVIRONMENT_VARIABLES.readinessTimeoutMs, { infer: true });
+  }
+
+  get workerHeartbeatIntervalMs(): number {
+    return this.config.get(ENVIRONMENT_VARIABLES.workerHeartbeatIntervalMs, { infer: true });
+  }
+
+  get schedulerHeartbeatIntervalMs(): number {
+    return this.config.get(ENVIRONMENT_VARIABLES.schedulerHeartbeatIntervalMs, { infer: true });
+  }
+
+  get processHeartbeatTtlSeconds(): number {
+    return this.config.get(ENVIRONMENT_VARIABLES.processHeartbeatTtlSeconds, { infer: true });
+  }
+
+  get healthSnapshotSchedule(): string {
+    return this.config.get(ENVIRONMENT_VARIABLES.healthSnapshotSchedule, { infer: true });
+  }
+
+  get operationsPruneSchedule(): string {
+    return this.config.get(ENVIRONMENT_VARIABLES.operationsPruneSchedule, { infer: true });
+  }
+
+  get healthHistoryRetentionDays(): number {
+    return this.config.get(ENVIRONMENT_VARIABLES.healthHistoryRetentionDays, { infer: true });
+  }
+
   get isDevelopment(): boolean {
     return this.environment === APP_ENVIRONMENT.development;
   }

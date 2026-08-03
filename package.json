@@ -55,6 +55,7 @@
     "@nestjs/platform-express": "^11.0.1",
     "@nestjs/swagger": "^11.2.0",
     "@nestjs/terminus": "^11.0.0",
+    "@nestjs/throttler": "6.5.0",
     "@scalar/nestjs-api-reference": "^1.2.12",
     "bullmq": "6.0.5",
     "class-transformer": "^0.5.1",

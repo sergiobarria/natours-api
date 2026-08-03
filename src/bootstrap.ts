@@ -23,8 +23,13 @@ export async function configureApplication(
   options: ApplicationConfigurationOptions = {},
 ): Promise<void> {
   app.setGlobalPrefix(API_PREFIX, {
-    exclude: [HTTP_ROUTES.health],
+    exclude: [HTTP_ROUTES.health, HTTP_ROUTES.ready],
   });
+
+  const express = app.getHttpAdapter().getInstance() as {
+    set(name: string, value: unknown): void;
+  };
+  express.set('trust proxy', config.trustedProxyCidrs);
 
   app.enableVersioning({
     type: VersioningType.URI,
