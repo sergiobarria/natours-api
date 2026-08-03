@@ -4,13 +4,7 @@ export const JOB_QUEUE = Symbol('JOB_QUEUE');
 
 export const PROCESS_ROLE = {
   api: 'api',
-  scheduler: 'scheduler',
   worker: 'worker',
-} as const;
-
-export const PLATFORM_JOB = {
-  healthSnapshot: 'platform.health-snapshot',
-  operationsPrune: 'platform.operations-prune',
 } as const;
 
 export type ProcessRole = (typeof PROCESS_ROLE)[keyof typeof PROCESS_ROLE];

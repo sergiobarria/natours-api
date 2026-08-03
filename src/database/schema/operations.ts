@@ -2,7 +2,6 @@ import { sql } from 'drizzle-orm';
 import {
   check,
   index,
-  integer,
   jsonb,
   pgTable,
   text,
@@ -42,18 +41,4 @@ export const auditEvents = pgTable(
       sql`(${table.actorType} = 'user' AND ${table.actorId} IS NOT NULL AND ${table.systemActorName} IS NULL) OR (${table.actorType} = 'system' AND ${table.actorId} IS NULL AND ${table.systemActorName} IS NOT NULL)`,
     ),
   ],
-);
-
-export const healthHistory = pgTable(
-  'health_history',
-  {
-    id: uuidPrimaryKey(),
-    component: text('component').notNull(),
-    status: text('status').notNull(),
-    latencyMs: integer('latency_ms').notNull(),
-    observedAt: timestamp('observed_at', { mode: 'date', precision: 3, withTimezone: true })
-      .notNull()
-      .defaultNow(),
-  },
-  table => [index(databaseObjectName('health_history', 'observed_at', 'idx')).on(table.observedAt)],
 );

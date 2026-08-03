@@ -10,7 +10,7 @@ import { Reflector } from '@nestjs/core';
 import type { Observable } from 'rxjs';
 import { map } from 'rxjs/operators';
 import { NATIVE_RESPONSE_METADATA } from './native-response.decorator.js';
-import { isPresentedResponse, presentCollection, presentResource } from './response.presenter.js';
+import { isPaginatedResponse } from './response.presenter.js';
 import type { CollectionResponse, PaginatedResponse, ResourceResponse } from './response.types.js';
 
 const noContentStatus: number = HttpStatus.NO_CONTENT;
@@ -40,12 +40,12 @@ export class ResponseEnvelopeInterceptor<T> implements NestInterceptor<T, Envelo
           nativeResponse === true ||
           response.statusCode === noContentStatus ||
           value instanceof StreamableFile ||
-          isPresentedResponse(value)
+          isPaginatedResponse(value)
         ) {
           return value;
         }
 
-        return Array.isArray(value) ? presentCollection(value) : presentResource(value);
+        return { data: value };
       }),
     );
   }

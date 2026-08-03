@@ -90,16 +90,7 @@ const rawEnvironmentSchema = z
     [ENVIRONMENT_VARIABLES.rateLimitAccountLimit]: positiveInteger,
     [ENVIRONMENT_VARIABLES.rateLimitAccountTtlMs]: positiveInteger,
     [ENVIRONMENT_VARIABLES.rateLimitAccountBlockMs]: positiveInteger,
-    [ENVIRONMENT_VARIABLES.rateLimitWebhookLimit]: positiveInteger,
-    [ENVIRONMENT_VARIABLES.rateLimitWebhookTtlMs]: positiveInteger,
-    [ENVIRONMENT_VARIABLES.rateLimitWebhookBlockMs]: positiveInteger,
     [ENVIRONMENT_VARIABLES.readinessTimeoutMs]: positiveInteger,
-    [ENVIRONMENT_VARIABLES.workerHeartbeatIntervalMs]: positiveInteger,
-    [ENVIRONMENT_VARIABLES.schedulerHeartbeatIntervalMs]: positiveInteger,
-    [ENVIRONMENT_VARIABLES.processHeartbeatTtlSeconds]: positiveInteger,
-    [ENVIRONMENT_VARIABLES.healthSnapshotSchedule]: z.string().trim().min(1),
-    [ENVIRONMENT_VARIABLES.operationsPruneSchedule]: z.string().trim().min(1),
-    [ENVIRONMENT_VARIABLES.healthHistoryRetentionDays]: positiveInteger,
     [ENVIRONMENT_VARIABLES.appUrl]: originSchema,
     [ENVIRONMENT_VARIABLES.frontendUrl]: originSchema,
     [ENVIRONMENT_VARIABLES.betterAuthUrl]: originSchema,
@@ -122,17 +113,6 @@ const rawEnvironmentSchema = z
         code: 'custom',
         path: ['CORS_ORIGINS'],
         message: 'CORS_ORIGINS is required in production',
-      });
-    }
-    const heartbeatTtlMs = environment.PROCESS_HEARTBEAT_TTL_SECONDS * 1_000;
-    if (
-      environment.WORKER_HEARTBEAT_INTERVAL_MS >= heartbeatTtlMs ||
-      environment.SCHEDULER_HEARTBEAT_INTERVAL_MS >= heartbeatTtlMs
-    ) {
-      context.addIssue({
-        code: 'custom',
-        path: ['PROCESS_HEARTBEAT_TTL_SECONDS'],
-        message: 'Heartbeat TTL must exceed every heartbeat interval',
       });
     }
     if (
@@ -202,16 +182,7 @@ export interface Environment {
   RATE_LIMIT_ACCOUNT_LIMIT: number;
   RATE_LIMIT_ACCOUNT_TTL_MS: number;
   RATE_LIMIT_ACCOUNT_BLOCK_MS: number;
-  RATE_LIMIT_WEBHOOK_LIMIT: number;
-  RATE_LIMIT_WEBHOOK_TTL_MS: number;
-  RATE_LIMIT_WEBHOOK_BLOCK_MS: number;
   READINESS_TIMEOUT_MS: number;
-  WORKER_HEARTBEAT_INTERVAL_MS: number;
-  SCHEDULER_HEARTBEAT_INTERVAL_MS: number;
-  PROCESS_HEARTBEAT_TTL_SECONDS: number;
-  HEALTH_SNAPSHOT_SCHEDULE: string;
-  OPERATIONS_PRUNE_SCHEDULE: string;
-  HEALTH_HISTORY_RETENTION_DAYS: number;
   APP_URL: string;
   FRONTEND_URL: string;
   BETTER_AUTH_URL: string;

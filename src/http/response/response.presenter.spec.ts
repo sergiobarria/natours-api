@@ -1,13 +1,6 @@
-import { presentCollection, presentPaginated, presentResource } from './response.presenter.js';
+import { presentPaginated } from './response.presenter.js';
 
 describe('response presenters', () => {
-  it('presents resources and collections in data envelopes', () => {
-    expect(presentResource({ id: 'resource-id' })).toEqual({ data: { id: 'resource-id' } });
-    expect(presentCollection([{ id: 'resource-id' }])).toEqual({
-      data: [{ id: 'resource-id' }],
-    });
-  });
-
   it('builds deterministic pagination metadata and links while preserving query parameters', () => {
     const response = presentPaginated([{ id: 'tour-id' }], {
       page: 2,

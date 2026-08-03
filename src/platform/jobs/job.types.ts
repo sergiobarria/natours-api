@@ -15,16 +15,9 @@ export interface DurableJobHandler<T> {
   execute(payload: T, context: TransactionContext): Promise<void>;
 }
 
-export interface JobSchedule {
-  id: string;
-  pattern: string;
-  payload: unknown;
-}
-
 export interface JobDefinition<T = unknown> {
   handler: DurableJobHandler<T>;
   name: string;
-  schedule?: JobSchedule;
   schema: z.ZodType<T>;
 }
 

@@ -27,24 +27,6 @@ export class ReadinessService {
     });
   }
 
-  heartbeat(role: 'worker' | 'scheduler'): Promise<HealthIndicatorResult> {
-    return this.probe(role, async () => {
-      let cursor = '0';
-      do {
-        const result = await this.redis.scan(
-          cursor,
-          'MATCH',
-          `${this.config.redisKeyPrefix}:heartbeat:${role}:*`,
-          'COUNT',
-          10,
-        );
-        cursor = result[0];
-        if (result[1].length > 0) return;
-      } while (cursor !== '0');
-      throw new Error(`${role} heartbeat is stale`);
-    });
-  }
-
   private async probe(name: string, work: () => Promise<void>): Promise<HealthIndicatorResult> {
     let timer: NodeJS.Timeout | undefined;
     try {
