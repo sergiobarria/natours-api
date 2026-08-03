@@ -43,11 +43,11 @@ Non-paginated collections use the same shape with an array. Paginated collection
     }
   },
   "links": {
-    "self": "/api/v1/tours?page=2&per_page=20",
-    "first": "/api/v1/tours?page=1&per_page=20",
-    "last": "/api/v1/tours?page=4&per_page=20",
-    "previous": "/api/v1/tours?page=1&per_page=20",
-    "next": "/api/v1/tours?page=3&per_page=20"
+    "self": "/api/v1/tours?page=2&limit=20",
+    "first": "/api/v1/tours?page=1&limit=20",
+    "last": "/api/v1/tours?page=4&limit=20",
+    "previous": "/api/v1/tours?page=1&limit=20",
+    "next": "/api/v1/tours?page=3&limit=20"
   }
 }
 ```
@@ -91,16 +91,18 @@ Authorization precedes validation and target disclosure on administrative operat
 
 ## Query conventions
 
-Tour listing supports pagination, allow-listed sorting, text/exact/range filters, sparse fieldsets, and optional `startDates` inclusion:
+Tour listing uses ordinary flat query parameters validated by a Nest DTO. It supports pagination,
+one allow-listed sort, text search, an exact difficulty filter, and numeric ranges:
 
 ```http
-GET /api/v1/tours?sort=price,-rating_avg&per_page=15&page=2
-GET /api/v1/tours?filter[difficulty]=moderate&filter[price][from]=500&filter[price][to]=1500
-GET /api/v1/tours?fields[tours]=name,slug,price
-GET /api/v1/tours?include=startDates&fields[tour_start_dates]=start_datetime_utc,available_spots
+GET /api/v1/tours?sortBy=price&sortOrder=asc&limit=15&page=2
+GET /api/v1/tours?difficulty=moderate&minPrice=50000&maxPrice=150000
+GET /api/v1/tours?search=forest&minDuration=3&maxDuration=10
 ```
 
-`id` remains with sparse fieldsets. Unsupported or malformed filters, sorts, includes, and values return `400`. Pagination links retain the complete active query. Review order is deterministic and newest-first; departures are chronological.
+Unsupported parameters and malformed values return `400`. Pagination links retain the validated
+query. Every tour sort appends the UUID as a stable tie-breaker. Departures and their query options
+are added by F-05 when that resource exists.
 
 ## Endpoint groups
 

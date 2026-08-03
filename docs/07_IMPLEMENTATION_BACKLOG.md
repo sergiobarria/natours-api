@@ -160,15 +160,15 @@ Lets travelers evaluate active experiences while giving operators controlled cat
 - [ ] Implement permission-protected create, partial update, detail, and soft-delete workflows with audit records.
 - [ ] Implement atomic guide-team replacement with one `lead-guide`, zero to four unique `guide` supporters, and no overlap.
 - [ ] Prevent incompatible role changes or deletion while assignments exist through identity/application policy integration.
-- [ ] Add public active-tour list/detail responses without guide emails, plus `duration_weeks` and ordered future `upcoming_dates`.
-- [ ] Implement allow-listed pagination, sorting, text/exact/range filters, sparse fieldsets, optional start-date inclusion, and deterministic links/order.
-- [ ] Enforce capacity-aware maximum-group-size updates once departures exist.
+- [ ] Add public active-tour list/detail responses without guide emails and derive `durationWeeks`.
+- [ ] Implement flat, typed pagination, one allow-listed sort, text/exact/range filters, and deterministic links/order.
+- [ ] Add upcoming dates and capacity-aware maximum-group-size checks with F-05, when departures exist.
 
 ### Acceptance criteria
 
 - Public callers see only active, non-deleted tours and safe guide data.
 - Administrative writes require the named permissions and produce redacted audits.
-- Slug, role/team, soft-delete, query, UTC-derived-field, and capacity invariants have unit/integration/e2e coverage.
+- Slug, role/team, soft-delete, query, and derived-duration behavior have proportional tests.
 
 ### Exclusions
 

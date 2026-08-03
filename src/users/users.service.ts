@@ -1,11 +1,18 @@
-import { ForbiddenException, Inject, Injectable, NotFoundException } from '@nestjs/common';
-import { asc, eq } from 'drizzle-orm';
+import {
+  ForbiddenException,
+  Inject,
+  Injectable,
+  NotFoundException,
+  UnprocessableEntityException,
+} from '@nestjs/common';
+import { and, asc, eq, isNull } from 'drizzle-orm';
 import { randomUUID } from 'node:crypto';
 import { DrizzleAuditRecorder } from '../audit/drizzle-audit-recorder.js';
 import { DatabaseUnitOfWork } from '../database/database-unit-of-work.js';
 import { DATABASE } from '../database/database.constants.js';
 import type { Database } from '../database/database.types.js';
 import { users, type ApplicationRole } from '../database/schema/identity.js';
+import { tourGuideAssignments } from '../database/schema/tours.js';
 
 const userSelection = {
   createdAt: users.createdAt,
@@ -71,8 +78,21 @@ export class UsersService {
         .select({ role: users.role })
         .from(users)
         .where(eq(users.id, targetId))
-        .limit(1);
+        .limit(1)
+        .for('update');
       if (!existing) throw new NotFoundException('User not found.');
+      const assignments = await transaction
+        .select({ assignmentRole: tourGuideAssignments.assignmentRole })
+        .from(tourGuideAssignments)
+        .where(
+          and(eq(tourGuideAssignments.userId, targetId), isNull(tourGuideAssignments.deletedAt)),
+        )
+        .for('update');
+      if (assignments.some(assignment => assignment.assignmentRole !== role)) {
+        throw new UnprocessableEntityException(
+          'Remove incompatible guide assignments before changing this role.',
+        );
+      }
       const [updated] = await transaction
         .update(users)
         .set({ role })
@@ -102,6 +122,26 @@ export class UsersService {
     if (administrative && actorId === targetId)
       throw new ForbiddenException('Administrators cannot delete themselves.');
     return this.unitOfWork.transaction(async transaction => {
+      const [existing] = await transaction
+        .select({ id: users.id })
+        .from(users)
+        .where(eq(users.id, targetId))
+        .limit(1)
+        .for('update');
+      if (!existing) throw new NotFoundException('User not found.');
+      const [assignment] = await transaction
+        .select({ id: tourGuideAssignments.id })
+        .from(tourGuideAssignments)
+        .where(
+          and(eq(tourGuideAssignments.userId, targetId), isNull(tourGuideAssignments.deletedAt)),
+        )
+        .limit(1)
+        .for('update');
+      if (assignment) {
+        throw new UnprocessableEntityException(
+          'Remove guide assignments before deleting this user.',
+        );
+      }
       const [deleted] = await transaction
         .delete(users)
         .where(eq(users.id, targetId))

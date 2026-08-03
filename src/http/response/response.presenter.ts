@@ -5,10 +5,10 @@ import type {
 } from './response.types.js';
 
 const paginationPageParameter = 'page';
-const paginationPerPageParameter = 'per_page';
+const paginationPerPageParameter = 'limit';
 const paginatedResponseMarker = Symbol('PAGINATED_RESPONSE');
 
-type PresentedPaginatedResponse<T> = PaginatedResponse<T> & {
+export type PresentedPaginatedResponse<T> = PaginatedResponse<T> & {
   readonly [paginatedResponseMarker]: true;
 };
 function buildPaginationUrl(

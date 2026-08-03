@@ -30,6 +30,8 @@ import { DATABASE } from '../src/database/database.constants.js';
 import type { Database } from '../src/database/database.types.js';
 import { outboxMessages } from '../src/database/schema/platform-jobs.js';
 import { users } from '../src/database/schema/identity.js';
+import { tourGuideAssignments, tours } from '../src/database/schema/tours.js';
+import { randomUUID } from 'node:crypto';
 import { and, desc, eq, sql } from 'drizzle-orm';
 import { presentPaginated } from '../src/http/response/response.presenter.js';
 
@@ -286,6 +288,94 @@ describe('application foundation (e2e)', () => {
     expect(missing.body).not.toHaveProperty('data');
   });
 
+  it('creates, updates, staffs, lists, and soft deletes tours through the Bearer flow', async () => {
+    await database.delete(tourGuideAssignments);
+    await database.delete(tours);
+    const leadId = randomUUID();
+    const guideId = randomUUID();
+    await database.insert(users).values([
+      { id: leadId, name: 'Lead Guide', email: `lead-${leadId}@example.com`, role: 'lead-guide' },
+      { id: guideId, name: 'Support Guide', email: `guide-${guideId}@example.com`, role: 'guide' },
+    ]);
+    const created = await request(httpServer)
+      .post('/api/v1/tours')
+      .set('authorization', `Bearer ${authenticatedToken}`)
+      .send({
+        name: 'The Forest Hiker',
+        summary: 'A safe forest experience.',
+        durationDays: 7,
+        maximumGroupSize: 15,
+        difficulty: 'moderate',
+        price: 49700,
+        discountPercentage: 10,
+        startLocation: {
+          name: 'Forest Gate',
+          address: 'Trail Road',
+          latitude: 8.98,
+          longitude: -79.52,
+        },
+        isActive: true,
+        leadGuideId: leadId,
+        guideIds: [guideId],
+      })
+      .expect(201);
+    const body = created.body as { data: { id: string; slug: string } };
+    expect(body.data.slug).toBe('the-forest-hiker');
+
+    const catalog = await request(httpServer)
+      .get('/api/v1/tours?sortBy=price&sortOrder=asc&minPrice=40000')
+      .expect(200);
+    expect(catalog.body).toMatchObject({
+      data: [expect.objectContaining({ id: body.data.id, price: 49700 })],
+    });
+    expect(JSON.stringify(catalog.body)).not.toContain(`lead-${leadId}@example.com`);
+    expect(JSON.stringify(catalog.body)).not.toContain(`guide-${guideId}@example.com`);
+    await request(httpServer).get('/api/v1/tours?filter[price][from]=100').expect(400);
+    await request(httpServer).get('/api/v1/tours?minPrice=500&maxPrice=100').expect(400);
+
+    await request(httpServer)
+      .patch(`/api/v1/tours/${body.data.id}`)
+      .set('authorization', `Bearer ${authenticatedToken}`)
+      .send({ maximumGroupSize: 20 })
+      .expect(200);
+    await request(httpServer)
+      .patch(`/api/v1/users/${guideId}/role`)
+      .set('authorization', `Bearer ${authenticatedToken}`)
+      .send({ role: 'user' })
+      .expect(422);
+    await request(httpServer)
+      .delete(`/api/v1/tours/${body.data.id}`)
+      .set('authorization', `Bearer ${authenticatedToken}`)
+      .expect(204);
+    await request(httpServer).get(`/api/v1/tours/${body.data.slug}`).expect(404);
+    const [deleted] = await database.select().from(tours).where(eq(tours.id, body.data.id));
+    expect(deleted?.deletedAt).toBeInstanceOf(Date);
+    const assignments = await database
+      .select()
+      .from(tourGuideAssignments)
+      .where(eq(tourGuideAssignments.tourId, body.data.id));
+    expect(assignments).toHaveLength(2);
+    expect(assignments.every(assignment => assignment.deletedAt instanceof Date)).toBe(true);
+
+    const replacement = await request(httpServer)
+      .post('/api/v1/tours')
+      .set('authorization', `Bearer ${authenticatedToken}`)
+      .send({
+        name: 'The Forest Hiker',
+        summary: 'A second forest experience.',
+        durationDays: 5,
+        maximumGroupSize: 10,
+        difficulty: 'easy',
+        price: 35000,
+        startLocation: { name: 'North Gate', latitude: 9.01, longitude: -79.5 },
+        isActive: true,
+        leadGuideId: leadId,
+        guideIds: [guideId],
+      })
+      .expect(201);
+    expect((replacement.body as { data: { slug: string } }).data.slug).toBe('the-forest-hiker-2');
+  });
+
   it('changes a password without leaking failures and revokes only other sessions', async () => {
     await request(httpServer)
       .post('/api/v1/users/me/change-password')
@@ -340,11 +430,11 @@ describe('application foundation (e2e)', () => {
       data: [{ id: 'second-page' }],
       meta: { pagination: { page: 2, perPage: 1, totalItems: 3, totalPages: 3 } },
       links: {
-        self: '/api/v1/contract-tests/pagination?page=2&per_page=1',
-        first: '/api/v1/contract-tests/pagination?page=1&per_page=1',
-        last: '/api/v1/contract-tests/pagination?page=3&per_page=1',
-        previous: '/api/v1/contract-tests/pagination?page=1&per_page=1',
-        next: '/api/v1/contract-tests/pagination?page=3&per_page=1',
+        self: '/api/v1/contract-tests/pagination?page=2&limit=1',
+        first: '/api/v1/contract-tests/pagination?page=1&limit=1',
+        last: '/api/v1/contract-tests/pagination?page=3&limit=1',
+        previous: '/api/v1/contract-tests/pagination?page=1&limit=1',
+        next: '/api/v1/contract-tests/pagination?page=3&limit=1',
       },
     });
   });

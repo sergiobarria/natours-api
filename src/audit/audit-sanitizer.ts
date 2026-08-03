@@ -8,6 +8,8 @@ const allowedFields: Record<AuditAction, ReadonlySet<string>> = {
   'user.role_changed': new Set(['role']),
   'account.security_changed': new Set(['changed', 'sessionsRevoked']),
   'user.profile_changed': new Set(['changed']),
+  'tour.changed': new Set(['status', 'slug']),
+  'tour.guide_team_replaced': new Set(['guideIds']),
 };
 
 function redact(value: unknown): unknown {
