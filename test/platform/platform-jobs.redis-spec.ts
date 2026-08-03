@@ -2,20 +2,26 @@ import { setTimeout as delay } from 'node:timers/promises';
 import { randomUUID } from 'node:crypto';
 import { Queue, QueueEvents } from 'bullmq';
 import { Redis } from 'ioredis';
-import { z } from 'zod';
 import type { AppConfigService } from '../../src/config/app-config.service.js';
 import { DatabaseUnitOfWork } from '../../src/database/database-unit-of-work.js';
-import { healthHistory } from '../../src/database/schema/operations.js';
 import { jobEffects } from '../../src/database/schema/platform-jobs.js';
 import { BullJobDispatcher } from '../../src/platform/jobs/bull-job-dispatcher.js';
 import { JobOperationsService } from '../../src/platform/jobs/job-operations.service.js';
-import { JobSchedulerLifecycle } from '../../src/platform/jobs/job-scheduler.lifecycle.js';
 import { JobWorkerLifecycle } from '../../src/platform/jobs/job-worker.lifecycle.js';
-import { HealthSnapshotJob, OperationsPruneJob } from '../../src/platform/jobs/operational-jobs.js';
 import { RedisThrottlerStorage } from '../../src/rate-limit/redis-throttler.storage.js';
-import { JobRegistry } from '../../src/platform/jobs/job.registry.js';
+import { AUTH_EMAIL_JOB, AUTH_EMAIL_TYPE } from '../../src/identity/identity.constants.js';
 import { purgeDatabase } from '../../scripts/database/purge-database.js';
 import { createTestDatabase, type TestDatabase } from '../database/test-database.js';
+
+function authEmailPayload(idempotencyKey: string) {
+  return {
+    expiresInSeconds: 3_600,
+    idempotencyKey,
+    recipient: 'user@example.com',
+    type: AUTH_EMAIL_TYPE.verification,
+    url: 'https://example.com/verify',
+  };
+}
 
 async function waitForState(
   queue: Queue,
@@ -41,7 +47,6 @@ describe('Redis and BullMQ platform jobs', () => {
   let worker: JobWorkerLifecycle;
   let dispatcher: BullJobDispatcher;
   let operations: JobOperationsService;
-  let registry: JobRegistry;
   let unitOfWork: DatabaseUnitOfWork;
   let calls = 0;
   let failuresRemaining = 0;
@@ -58,7 +63,6 @@ describe('Redis and BullMQ platform jobs', () => {
     jobsRemoveOnComplete: { age: 60, count: 100 },
     jobsRemoveOnFail: { age: 60, count: 100 },
     jobsWorkerConcurrency: 2,
-    healthHistoryRetentionDays: 30,
     redisKeyPrefix: `natours-test-${suffix}`,
   } as AppConfigService;
 
@@ -77,35 +81,25 @@ describe('Redis and BullMQ platform jobs', () => {
     });
     await queueEvents.waitUntilReady();
 
-    registry = new JobRegistry();
-    registry.register({
-      handler: {
-        execute: () => {
-          calls += 1;
-          if (failuresRemaining > 0) {
-            failuresRemaining -= 1;
-            return Promise.reject(new Error('password=hidden queue fixture failure'));
-          }
-          return Promise.resolve();
-        },
+    const authEmail = {
+      execute: () => {
+        calls += 1;
+        if (failuresRemaining > 0) {
+          failuresRemaining -= 1;
+          return Promise.reject(new Error('password=hidden queue fixture failure'));
+        }
+        return Promise.resolve();
       },
-      name: 'fixture.effect',
-      schedule: {
-        id: 'fixture-effect-schedule',
-        pattern: '0 0 1 1 *',
-        payload: { value: 'scheduled' },
-      },
-      schema: z.object({ value: z.string() }),
-    });
+    };
 
     unitOfWork = new DatabaseUnitOfWork(testDatabase.database);
     worker = new JobWorkerLifecycle(
       config,
-      registry,
       unitOfWork,
+      authEmail,
       () => new Redis(redisUrl, { maxRetriesPerRequest: null }),
     );
-    dispatcher = new BullJobDispatcher(queue, config, registry);
+    dispatcher = new BullJobDispatcher(queue, config);
     operations = new JobOperationsService(queue);
     worker.onModuleInit();
   });
@@ -136,13 +130,13 @@ describe('Redis and BullMQ platform jobs', () => {
   it('deduplicates delivery and commits one domain effect', async () => {
     const first = await dispatcher.dispatch({
       idempotencyKey: 'fixture:deduplicate',
-      name: 'fixture.effect',
-      payload: { value: 'first' },
+      name: AUTH_EMAIL_JOB,
+      payload: authEmailPayload('fixture:deduplicate'),
     });
     const second = await dispatcher.dispatch({
       idempotencyKey: 'fixture:deduplicate',
-      name: 'fixture.effect',
-      payload: { value: 'second' },
+      name: AUTH_EMAIL_JOB,
+      payload: authEmailPayload('fixture:deduplicate'),
     });
     expect(second.id).toBe(first.id);
     await waitForState(queue, first.id, 'completed');
@@ -155,8 +149,8 @@ describe('Redis and BullMQ platform jobs', () => {
     failuresRemaining = 1;
     const queued = await dispatcher.dispatch({
       idempotencyKey: 'fixture:retry',
-      name: 'fixture.effect',
-      payload: { value: 'retry' },
+      name: AUTH_EMAIL_JOB,
+      payload: authEmailPayload('fixture:retry'),
     });
     await waitForState(queue, queued.id, 'completed');
 
@@ -168,8 +162,8 @@ describe('Redis and BullMQ platform jobs', () => {
     failuresRemaining = 3;
     const queued = await dispatcher.dispatch({
       idempotencyKey: 'fixture:failure',
-      name: 'fixture.effect',
-      payload: { value: 'failure' },
+      name: AUTH_EMAIL_JOB,
+      payload: authEmailPayload('fixture:failure'),
     });
     await waitForState(queue, queued.id, 'failed');
 
@@ -183,15 +177,6 @@ describe('Redis and BullMQ platform jobs', () => {
     expect(await testDatabase.database.select().from(jobEffects)).toHaveLength(1);
   });
 
-  it('upserts a scheduler without duplicating its definition', async () => {
-    const scheduler = new JobSchedulerLifecycle(queue, registry, config);
-    await scheduler.onModuleInit();
-    await scheduler.onModuleInit();
-    const schedulers = await queue.getJobSchedulers();
-
-    expect(schedulers.filter(item => item.key === 'fixture-effect-schedule')).toHaveLength(1);
-  });
-
   it('increments and blocks distributed rate limits atomically', async () => {
     const firstInstance = new RedisThrottlerStorage(producer, config);
     const secondInstance = new RedisThrottlerStorage(producer, config);
@@ -201,29 +186,5 @@ describe('Redis and BullMQ platform jobs', () => {
     const blocked = await firstInstance.increment(key, 1_000, 2, 2_000, 'global');
     expect(blocked.isBlocked).toBe(true);
     expect(blocked.timeToBlockExpire).toBeGreaterThan(0);
-  });
-
-  it('records sanitized dependency history and prunes only expired observations', async () => {
-    const snapshot = new HealthSnapshotJob(producer);
-    await unitOfWork.transaction(context => snapshot.execute({}, context));
-    expect(await testDatabase.database.select().from(healthHistory)).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({ component: 'postgres', status: 'up' }),
-        expect.objectContaining({ component: 'redis', status: 'up' }),
-      ]),
-    );
-    await testDatabase.database.insert(healthHistory).values({
-      component: 'redis',
-      latencyMs: 1,
-      observedAt: new Date('2000-01-01T00:00:00.000Z'),
-      status: 'up',
-    });
-    const prune = new OperationsPruneJob(config);
-    await unitOfWork.transaction(context => prune.execute({}, context));
-    expect(
-      (await testDatabase.database.select().from(healthHistory)).every(
-        row => row.observedAt.getUTCFullYear() > 2000,
-      ),
-    ).toBe(true);
   });
 });

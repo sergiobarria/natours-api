@@ -7,10 +7,6 @@ const allowedFields: Record<AuditAction, ReadonlySet<string>> = {
   'user.administered': new Set(['active', 'role']),
   'user.role_changed': new Set(['role']),
   'account.security_changed': new Set(['changed', 'sessionsRevoked']),
-  'tour.changed': new Set(['status', 'slug']),
-  'tour.guide_team_replaced': new Set(['guideIds']),
-  'departure.changed': new Set(['date', 'capacity', 'status']),
-  'media.administrative_changed': new Set(['mediaId', 'operation']),
   'user.profile_changed': new Set(['changed']),
 };
 

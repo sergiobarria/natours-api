@@ -38,11 +38,6 @@ export class ReadinessController {
   @Version(VERSION_NEUTRAL)
   @HealthCheck()
   check() {
-    return this.health.check([
-      () => this.readiness.postgres(),
-      () => this.readiness.redisProbe(),
-      () => this.readiness.heartbeat('worker'),
-      () => this.readiness.heartbeat('scheduler'),
-    ]);
+    return this.health.check([() => this.readiness.postgres(), () => this.readiness.redisProbe()]);
   }
 }

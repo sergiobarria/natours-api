@@ -1,247 +1,119 @@
-import { Inject, Injectable } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
-import { APP_ENVIRONMENT, ENVIRONMENT_VARIABLES } from './config.constants.js';
-import { Environment } from './environment.js';
+import { APP_ENVIRONMENT, RUNTIME_DEFAULTS } from './config.constants.js';
+import type { Environment } from './environment.js';
 
-@Injectable()
 export class AppConfigService {
-  constructor(@Inject(ConfigService) private readonly config: ConfigService<Environment, true>) {}
+  readonly environment: Environment['NODE_ENV'];
+  readonly host: string;
+  readonly port: number;
+  readonly logLevel: Environment['LOG_LEVEL'];
+  readonly corsOrigins: string[];
+  readonly databaseUrl: string;
+  readonly databasePoolMax: number;
+  readonly databasePoolIdleTimeoutMs: number;
+  readonly databasePoolConnectionTimeoutMs: number;
+  readonly redisUrl: string;
+  readonly redisKeyPrefix: string;
+  readonly redisConnectTimeoutMs: number;
+  readonly redisCommandTimeoutMs: number;
+  readonly redisMaxRetriesPerRequest: number;
+  readonly jobsQueueName: string;
+  readonly jobsAttempts: number;
+  readonly jobsBackoffDelayMs: number;
+  readonly jobsBackoffJitter: number;
+  readonly jobsWorkerConcurrency: number;
+  readonly jobsLockDurationMs: number;
+  readonly jobsMaxStalledCount: number;
+  readonly jobsRemoveOnComplete: { age: number; count: number };
+  readonly jobsRemoveOnFail: { age: number; count: number };
+  readonly outboxPollIntervalMs: number;
+  readonly outboxBatchSize: number;
+  readonly processShutdownTimeoutMs: number;
+  readonly trustedProxyCidrs: string[];
+  readonly rateLimits: {
+    global: { limit: number; ttl: number; blockDuration: number };
+    authentication: { limit: number; ttl: number; blockDuration: number };
+    account: { limit: number; ttl: number; blockDuration: number };
+  };
+  readonly readinessTimeoutMs: number;
+  readonly appUrl: string;
+  readonly frontendUrl: string;
+  readonly betterAuthUrl: string;
+  readonly betterAuthSecret: string;
+  readonly betterAuthTrustedOrigins: string[];
+  readonly betterAuthSessionExpiresInSeconds: number;
+  readonly betterAuthSessionUpdateAgeSeconds: number;
+  readonly betterAuthVerificationExpiresInSeconds: number;
+  readonly betterAuthPasswordResetExpiresInSeconds: number;
+  readonly betterAuthMinPasswordLength: number;
+  readonly betterAuthMaxPasswordLength: number;
+  readonly emailProvider: Environment['EMAIL_PROVIDER'];
+  readonly resendApiKey: string;
+  readonly mailFromAddress: string;
+  readonly mailFromName: string;
 
-  get environment(): Environment['NODE_ENV'] {
-    return this.config.get(ENVIRONMENT_VARIABLES.nodeEnv, { infer: true });
-  }
-
-  get host(): string {
-    return this.config.get(ENVIRONMENT_VARIABLES.host, { infer: true });
-  }
-
-  get port(): number {
-    return this.config.get(ENVIRONMENT_VARIABLES.port, { infer: true });
-  }
-
-  get logLevel(): Environment['LOG_LEVEL'] {
-    return this.config.get(ENVIRONMENT_VARIABLES.logLevel, { infer: true });
-  }
-
-  get corsOrigins(): string[] {
-    return this.config.get(ENVIRONMENT_VARIABLES.corsOrigins, { infer: true });
-  }
-
-  get databaseUrl(): string {
-    return this.config.get(ENVIRONMENT_VARIABLES.databaseUrl, { infer: true });
-  }
-
-  get databasePoolMax(): number {
-    return this.config.get(ENVIRONMENT_VARIABLES.databasePoolMax, { infer: true });
-  }
-
-  get databasePoolIdleTimeoutMs(): number {
-    return this.config.get(ENVIRONMENT_VARIABLES.databasePoolIdleTimeoutMs, { infer: true });
-  }
-
-  get databasePoolConnectionTimeoutMs(): number {
-    return this.config.get(ENVIRONMENT_VARIABLES.databasePoolConnectionTimeoutMs, {
-      infer: true,
-    });
-  }
-
-  get redisUrl(): string {
-    return this.config.get(ENVIRONMENT_VARIABLES.redisUrl, { infer: true });
-  }
-
-  get redisKeyPrefix(): string {
-    return this.config.get(ENVIRONMENT_VARIABLES.redisKeyPrefix, { infer: true });
-  }
-
-  get redisConnectTimeoutMs(): number {
-    return this.config.get(ENVIRONMENT_VARIABLES.redisConnectTimeoutMs, { infer: true });
-  }
-
-  get redisCommandTimeoutMs(): number {
-    return this.config.get(ENVIRONMENT_VARIABLES.redisCommandTimeoutMs, { infer: true });
-  }
-
-  get redisMaxRetriesPerRequest(): number {
-    return this.config.get(ENVIRONMENT_VARIABLES.redisMaxRetriesPerRequest, { infer: true });
-  }
-
-  get jobsQueueName(): string {
-    return this.config.get(ENVIRONMENT_VARIABLES.jobsQueueName, { infer: true });
-  }
-
-  get jobsAttempts(): number {
-    return this.config.get(ENVIRONMENT_VARIABLES.jobsAttempts, { infer: true });
-  }
-
-  get jobsBackoffDelayMs(): number {
-    return this.config.get(ENVIRONMENT_VARIABLES.jobsBackoffDelayMs, { infer: true });
-  }
-
-  get jobsBackoffJitter(): number {
-    return this.config.get(ENVIRONMENT_VARIABLES.jobsBackoffJitter, { infer: true });
-  }
-
-  get jobsWorkerConcurrency(): number {
-    return this.config.get(ENVIRONMENT_VARIABLES.jobsWorkerConcurrency, { infer: true });
-  }
-
-  get jobsLockDurationMs(): number {
-    return this.config.get(ENVIRONMENT_VARIABLES.jobsLockDurationMs, { infer: true });
-  }
-
-  get jobsMaxStalledCount(): number {
-    return this.config.get(ENVIRONMENT_VARIABLES.jobsMaxStalledCount, { infer: true });
-  }
-
-  get jobsRemoveOnComplete(): { age: number; count: number } {
-    return {
-      age: this.config.get(ENVIRONMENT_VARIABLES.jobsRemoveOnCompleteAgeSeconds, { infer: true }),
-      count: this.config.get(ENVIRONMENT_VARIABLES.jobsRemoveOnCompleteCount, { infer: true }),
+  constructor(environment: Environment) {
+    this.environment = environment.NODE_ENV;
+    this.host = environment.HOST;
+    this.port = environment.PORT;
+    this.logLevel = environment.LOG_LEVEL;
+    this.corsOrigins = environment.CORS_ORIGINS;
+    this.databaseUrl = environment.DATABASE_URL;
+    this.databasePoolMax = environment.DATABASE_POOL_MAX;
+    this.databasePoolIdleTimeoutMs = environment.DATABASE_POOL_IDLE_TIMEOUT_MS;
+    this.databasePoolConnectionTimeoutMs = environment.DATABASE_POOL_CONNECTION_TIMEOUT_MS;
+    this.redisUrl = environment.REDIS_URL;
+    this.redisKeyPrefix = environment.REDIS_KEY_PREFIX;
+    this.redisConnectTimeoutMs = RUNTIME_DEFAULTS.redis.connectTimeoutMs;
+    this.redisCommandTimeoutMs = RUNTIME_DEFAULTS.redis.commandTimeoutMs;
+    this.redisMaxRetriesPerRequest = RUNTIME_DEFAULTS.redis.maxRetriesPerRequest;
+    this.jobsQueueName = environment.JOBS_QUEUE_NAME;
+    this.jobsAttempts = RUNTIME_DEFAULTS.jobs.attempts;
+    this.jobsBackoffDelayMs = RUNTIME_DEFAULTS.jobs.backoffDelayMs;
+    this.jobsBackoffJitter = RUNTIME_DEFAULTS.jobs.backoffJitter;
+    this.jobsWorkerConcurrency = environment.JOBS_WORKER_CONCURRENCY;
+    this.jobsLockDurationMs = RUNTIME_DEFAULTS.jobs.lockDurationMs;
+    this.jobsMaxStalledCount = RUNTIME_DEFAULTS.jobs.maxStalledCount;
+    this.jobsRemoveOnComplete = RUNTIME_DEFAULTS.jobs.removeOnComplete;
+    this.jobsRemoveOnFail = RUNTIME_DEFAULTS.jobs.removeOnFail;
+    this.outboxPollIntervalMs = RUNTIME_DEFAULTS.outbox.pollIntervalMs;
+    this.outboxBatchSize = RUNTIME_DEFAULTS.outbox.batchSize;
+    this.processShutdownTimeoutMs = RUNTIME_DEFAULTS.processShutdownTimeoutMs;
+    this.trustedProxyCidrs = splitList(environment.TRUSTED_PROXY_CIDRS);
+    this.rateLimits = {
+      global: rateLimit(
+        environment.RATE_LIMIT_GLOBAL_LIMIT,
+        environment.RATE_LIMIT_GLOBAL_TTL_MS,
+        environment.RATE_LIMIT_GLOBAL_BLOCK_MS,
+      ),
+      authentication: rateLimit(
+        environment.RATE_LIMIT_AUTH_LIMIT,
+        environment.RATE_LIMIT_AUTH_TTL_MS,
+        environment.RATE_LIMIT_AUTH_BLOCK_MS,
+      ),
+      account: rateLimit(
+        environment.RATE_LIMIT_ACCOUNT_LIMIT,
+        environment.RATE_LIMIT_ACCOUNT_TTL_MS,
+        environment.RATE_LIMIT_ACCOUNT_BLOCK_MS,
+      ),
     };
-  }
-
-  get jobsRemoveOnFail(): { age: number; count: number } {
-    return {
-      age: this.config.get(ENVIRONMENT_VARIABLES.jobsRemoveOnFailAgeSeconds, { infer: true }),
-      count: this.config.get(ENVIRONMENT_VARIABLES.jobsRemoveOnFailCount, { infer: true }),
-    };
-  }
-
-  get outboxPollIntervalMs(): number {
-    return this.config.get(ENVIRONMENT_VARIABLES.outboxPollIntervalMs, { infer: true });
-  }
-
-  get outboxBatchSize(): number {
-    return this.config.get(ENVIRONMENT_VARIABLES.outboxBatchSize, { infer: true });
-  }
-
-  get processShutdownTimeoutMs(): number {
-    return this.config.get(ENVIRONMENT_VARIABLES.processShutdownTimeoutMs, { infer: true });
-  }
-
-  get trustedProxyCidrs(): string[] {
-    return this.config
-      .get(ENVIRONMENT_VARIABLES.trustedProxyCidrs, { infer: true })
-      .split(',')
-      .map(value => value.trim())
-      .filter(Boolean);
-  }
-
-  get rateLimits() {
-    return {
-      global: {
-        limit: this.config.get(ENVIRONMENT_VARIABLES.rateLimitGlobalLimit, { infer: true }),
-        ttl: this.config.get(ENVIRONMENT_VARIABLES.rateLimitGlobalTtlMs, { infer: true }),
-        blockDuration: this.config.get(ENVIRONMENT_VARIABLES.rateLimitGlobalBlockMs, {
-          infer: true,
-        }),
-      },
-      authentication: {
-        limit: this.config.get(ENVIRONMENT_VARIABLES.rateLimitAuthLimit, { infer: true }),
-        ttl: this.config.get(ENVIRONMENT_VARIABLES.rateLimitAuthTtlMs, { infer: true }),
-        blockDuration: this.config.get(ENVIRONMENT_VARIABLES.rateLimitAuthBlockMs, { infer: true }),
-      },
-      account: {
-        limit: this.config.get(ENVIRONMENT_VARIABLES.rateLimitAccountLimit, { infer: true }),
-        ttl: this.config.get(ENVIRONMENT_VARIABLES.rateLimitAccountTtlMs, { infer: true }),
-        blockDuration: this.config.get(ENVIRONMENT_VARIABLES.rateLimitAccountBlockMs, {
-          infer: true,
-        }),
-      },
-      webhook: {
-        limit: this.config.get(ENVIRONMENT_VARIABLES.rateLimitWebhookLimit, { infer: true }),
-        ttl: this.config.get(ENVIRONMENT_VARIABLES.rateLimitWebhookTtlMs, { infer: true }),
-        blockDuration: this.config.get(ENVIRONMENT_VARIABLES.rateLimitWebhookBlockMs, {
-          infer: true,
-        }),
-      },
-    };
-  }
-
-  get readinessTimeoutMs(): number {
-    return this.config.get(ENVIRONMENT_VARIABLES.readinessTimeoutMs, { infer: true });
-  }
-
-  get workerHeartbeatIntervalMs(): number {
-    return this.config.get(ENVIRONMENT_VARIABLES.workerHeartbeatIntervalMs, { infer: true });
-  }
-
-  get schedulerHeartbeatIntervalMs(): number {
-    return this.config.get(ENVIRONMENT_VARIABLES.schedulerHeartbeatIntervalMs, { infer: true });
-  }
-
-  get processHeartbeatTtlSeconds(): number {
-    return this.config.get(ENVIRONMENT_VARIABLES.processHeartbeatTtlSeconds, { infer: true });
-  }
-
-  get healthSnapshotSchedule(): string {
-    return this.config.get(ENVIRONMENT_VARIABLES.healthSnapshotSchedule, { infer: true });
-  }
-
-  get operationsPruneSchedule(): string {
-    return this.config.get(ENVIRONMENT_VARIABLES.operationsPruneSchedule, { infer: true });
-  }
-
-  get healthHistoryRetentionDays(): number {
-    return this.config.get(ENVIRONMENT_VARIABLES.healthHistoryRetentionDays, { infer: true });
-  }
-
-  get appUrl(): string {
-    return this.config.get(ENVIRONMENT_VARIABLES.appUrl, { infer: true });
-  }
-  get frontendUrl(): string {
-    return this.config.get(ENVIRONMENT_VARIABLES.frontendUrl, { infer: true });
-  }
-  get betterAuthUrl(): string {
-    return this.config.get(ENVIRONMENT_VARIABLES.betterAuthUrl, { infer: true });
-  }
-  get betterAuthSecret(): string {
-    return this.config.get(ENVIRONMENT_VARIABLES.betterAuthSecret, { infer: true });
-  }
-  get betterAuthTrustedOrigins(): string[] {
-    return this.config
-      .get(ENVIRONMENT_VARIABLES.betterAuthTrustedOrigins, { infer: true })
-      .split(',')
-      .map(value => value.trim())
-      .filter(Boolean);
-  }
-  get betterAuthSessionExpiresInSeconds(): number {
-    return this.config.get(ENVIRONMENT_VARIABLES.betterAuthSessionExpiresInSeconds, {
-      infer: true,
-    });
-  }
-  get betterAuthSessionUpdateAgeSeconds(): number {
-    return this.config.get(ENVIRONMENT_VARIABLES.betterAuthSessionUpdateAgeSeconds, {
-      infer: true,
-    });
-  }
-  get betterAuthVerificationExpiresInSeconds(): number {
-    return this.config.get(ENVIRONMENT_VARIABLES.betterAuthVerificationExpiresInSeconds, {
-      infer: true,
-    });
-  }
-  get betterAuthPasswordResetExpiresInSeconds(): number {
-    return this.config.get(ENVIRONMENT_VARIABLES.betterAuthPasswordResetExpiresInSeconds, {
-      infer: true,
-    });
-  }
-  get betterAuthMinPasswordLength(): number {
-    return this.config.get(ENVIRONMENT_VARIABLES.betterAuthMinPasswordLength, { infer: true });
-  }
-  get betterAuthMaxPasswordLength(): number {
-    return this.config.get(ENVIRONMENT_VARIABLES.betterAuthMaxPasswordLength, { infer: true });
-  }
-  get emailProvider(): Environment['EMAIL_PROVIDER'] {
-    return this.config.get(ENVIRONMENT_VARIABLES.emailProvider, { infer: true });
-  }
-  get resendApiKey(): string {
-    return this.config.get(ENVIRONMENT_VARIABLES.resendApiKey, { infer: true });
-  }
-  get mailFromAddress(): string {
-    return this.config.get(ENVIRONMENT_VARIABLES.mailFromAddress, { infer: true });
-  }
-  get mailFromName(): string {
-    return this.config.get(ENVIRONMENT_VARIABLES.mailFromName, { infer: true });
+    this.readinessTimeoutMs = RUNTIME_DEFAULTS.readinessTimeoutMs;
+    this.appUrl = environment.APP_URL;
+    this.frontendUrl = environment.FRONTEND_URL;
+    this.betterAuthUrl = environment.BETTER_AUTH_URL;
+    this.betterAuthSecret = environment.BETTER_AUTH_SECRET;
+    this.betterAuthTrustedOrigins = splitList(environment.BETTER_AUTH_TRUSTED_ORIGINS);
+    this.betterAuthSessionExpiresInSeconds = RUNTIME_DEFAULTS.betterAuth.sessionExpiresInSeconds;
+    this.betterAuthSessionUpdateAgeSeconds = RUNTIME_DEFAULTS.betterAuth.sessionUpdateAgeSeconds;
+    this.betterAuthVerificationExpiresInSeconds =
+      RUNTIME_DEFAULTS.betterAuth.verificationExpiresInSeconds;
+    this.betterAuthPasswordResetExpiresInSeconds =
+      RUNTIME_DEFAULTS.betterAuth.passwordResetExpiresInSeconds;
+    this.betterAuthMinPasswordLength = RUNTIME_DEFAULTS.betterAuth.minPasswordLength;
+    this.betterAuthMaxPasswordLength = RUNTIME_DEFAULTS.betterAuth.maxPasswordLength;
+    this.emailProvider = environment.EMAIL_PROVIDER;
+    this.resendApiKey = environment.RESEND_API_KEY;
+    this.mailFromAddress = environment.MAIL_FROM_ADDRESS;
+    this.mailFromName = environment.MAIL_FROM_NAME;
   }
 
   get isDevelopment(): boolean {
@@ -251,4 +123,15 @@ export class AppConfigService {
   get isProduction(): boolean {
     return this.environment === APP_ENVIRONMENT.production;
   }
+}
+
+function splitList(value: string): string[] {
+  return value
+    .split(',')
+    .map(item => item.trim())
+    .filter(Boolean);
+}
+
+function rateLimit(limit: number, ttl: number, blockDuration: number) {
+  return { limit, ttl, blockDuration };
 }

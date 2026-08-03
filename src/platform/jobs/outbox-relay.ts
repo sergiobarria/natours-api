@@ -1,18 +1,14 @@
 import { Inject, Injectable, Logger, OnApplicationShutdown, OnModuleInit } from '@nestjs/common';
 import { and, asc, isNull, lte, sql } from 'drizzle-orm';
 import { AppConfigService } from '../../config/app-config.service.js';
-import {
-  DatabaseUnitOfWork,
-  getTransactionDatabase,
-} from '../../database/database-unit-of-work.js';
+import { DatabaseUnitOfWork } from '../../database/database-unit-of-work.js';
 import { outboxMessages } from '../../database/schema/platform-jobs.js';
 import {
   sanitizeOperationalError,
   sanitizeOperationalText,
 } from '../../security/sensitive-data.js';
 import { CLOCK, type Clock } from '../clock/clock.js';
-import { JOB_DISPATCHER } from './job.constants.js';
-import type { JobDispatcher } from './job.types.js';
+import { BullJobDispatcher } from './bull-job-dispatcher.js';
 
 function safeErrorMessage(error: unknown): string {
   const message = error instanceof Error ? error.message : String(error);
@@ -29,7 +25,8 @@ export class OutboxRelay implements OnModuleInit, OnApplicationShutdown {
     private readonly config: AppConfigService,
     private readonly unitOfWork: DatabaseUnitOfWork,
     @Inject(CLOCK) private readonly clock: Clock,
-    @Inject(JOB_DISPATCHER) private readonly dispatcher: JobDispatcher,
+    @Inject(BullJobDispatcher)
+    private readonly dispatcher: Pick<BullJobDispatcher, 'dispatch'>,
   ) {}
 
   onModuleInit(): void {
@@ -51,9 +48,8 @@ export class OutboxRelay implements OnModuleInit, OnApplicationShutdown {
 
   async runOnce(): Promise<number> {
     let dispatched = 0;
-    await this.unitOfWork.transaction(async context => {
-      const database = getTransactionDatabase(context);
-      const messages = await database
+    await this.unitOfWork.transaction(async transaction => {
+      const messages = await transaction
         .select()
         .from(outboxMessages)
         .where(
@@ -73,13 +69,13 @@ export class OutboxRelay implements OnModuleInit, OnApplicationShutdown {
             name: message.jobName,
             payload: message.payload,
           });
-          await database
+          await transaction
             .update(outboxMessages)
             .set({ dispatchedAt: this.clock.now(), lastError: null })
             .where(sql`${outboxMessages.id} = ${message.id}`);
           dispatched += 1;
         } catch (error) {
-          await database
+          await transaction
             .update(outboxMessages)
             .set({
               attemptCount: sql`${outboxMessages.attemptCount} + 1`,

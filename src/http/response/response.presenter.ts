@@ -1,36 +1,16 @@
 import type {
-  CollectionResponse,
   PaginatedResponse,
   PaginationLinks,
   PaginationPresentation,
-  ResourceResponse,
 } from './response.types.js';
 
 const paginationPageParameter = 'page';
 const paginationPerPageParameter = 'per_page';
-const presentedResponseMarker = Symbol('PRESENTED_RESPONSE');
+const paginatedResponseMarker = Symbol('PAGINATED_RESPONSE');
 
-interface PresentedResponse {
-  readonly [presentedResponseMarker]: true;
-}
-
-export type PresentedResourceResponse<T> = ResourceResponse<T> & PresentedResponse;
-export type PresentedCollectionResponse<T> = CollectionResponse<T> & PresentedResponse;
-export type PresentedPaginatedResponse<T> = PaginatedResponse<T> & PresentedResponse;
-
-function markPresented<T extends object>(response: T): T & PresentedResponse {
-  Object.defineProperty(response, presentedResponseMarker, { value: true });
-  return response as T & PresentedResponse;
-}
-
-export function presentResource<T>(data: T): PresentedResourceResponse<T> {
-  return markPresented({ data });
-}
-
-export function presentCollection<T>(data: T[]): PresentedCollectionResponse<T> {
-  return markPresented({ data });
-}
-
+type PresentedPaginatedResponse<T> = PaginatedResponse<T> & {
+  readonly [paginatedResponseMarker]: true;
+};
 function buildPaginationUrl(
   path: string,
   query: PaginationPresentation['query'],
@@ -84,21 +64,23 @@ export function presentPaginated<T>(
 ): PresentedPaginatedResponse<T> {
   const { meta = {}, page, perPage, totalItems } = presentation;
   const totalPages = Math.ceil(totalItems / perPage);
-  return markPresented({
+  const response = {
     data,
     meta: {
       ...meta,
       pagination: { page, perPage, totalItems, totalPages },
     },
     links: buildPaginationLinks(presentation, totalPages),
-  });
+  };
+  Object.defineProperty(response, paginatedResponseMarker, { value: true });
+  return response as PresentedPaginatedResponse<T>;
 }
 
-export function isPresentedResponse(value: unknown): value is PresentedResponse {
+export function isPaginatedResponse(value: unknown): value is PaginatedResponse<unknown> {
   return (
     typeof value === 'object' &&
     value !== null &&
-    presentedResponseMarker in value &&
-    value[presentedResponseMarker] === true
+    paginatedResponseMarker in value &&
+    value[paginatedResponseMarker] === true
   );
 }

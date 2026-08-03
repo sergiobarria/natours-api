@@ -2,11 +2,7 @@ import { setTimeout as delay } from 'node:timers/promises';
 import { randomUUID } from 'node:crypto';
 import { eq, sql } from 'drizzle-orm';
 import { TEST_DATABASE_WORKER_MARKER } from '../../scripts/database/database-script.constants.js';
-import {
-  DatabaseUnitOfWork,
-  getTransactionDatabase,
-} from '../../src/database/database-unit-of-work.js';
-import type { TransactionContext } from '../../src/database/database-unit-of-work.js';
+import { DatabaseUnitOfWork } from '../../src/database/database-unit-of-work.js';
 import { databaseObjectName } from '../../src/database/schema/names.js';
 import { purgeDatabase } from '../../scripts/database/purge-database.js';
 import { persistenceChildren, persistenceRecords } from './fixtures/schema.js';
@@ -46,7 +42,7 @@ describe('PostgreSQL persistence infrastructure', () => {
         AND column_name = 'label'
     `);
 
-    expect(productionHistory.rows[0]?.count).toBe('4');
+    expect(productionHistory.rows[0]?.count).toBe('5');
     expect(fixtureHistory.rows[0]?.count).toBe('2');
     expect(upgradedColumn.rows).toEqual([{ column_name: 'label' }]);
   });
@@ -66,13 +62,12 @@ describe('PostgreSQL persistence infrastructure', () => {
       const after = await upgradeDatabase.pool.query<{ table_name: string }>(`
         SELECT table_name
         FROM information_schema.tables
-        WHERE table_schema = 'public' AND table_name IN ('accounts', 'audit_events', 'health_history', 'job_effects', 'outbox_messages', 'sessions', 'users', 'verifications')
+        WHERE table_schema = 'public' AND table_name IN ('accounts', 'audit_events', 'job_effects', 'outbox_messages', 'sessions', 'users', 'verifications')
         ORDER BY table_name
       `);
       expect(after.rows).toEqual([
         { table_name: 'accounts' },
         { table_name: 'audit_events' },
-        { table_name: 'health_history' },
         { table_name: 'job_effects' },
         { table_name: 'outbox_messages' },
         { table_name: 'sessions' },
@@ -163,8 +158,7 @@ describe('PostgreSQL persistence infrastructure', () => {
     const recordId = randomUUID();
 
     await expect(
-      unitOfWork.transaction(async context => {
-        const transaction = getTransactionDatabase(context);
+      unitOfWork.transaction(async transaction => {
         await transaction.execute(sql`
           INSERT INTO persistence_records (id, external_key, amount_in_cents, sequence)
           VALUES (${recordId}, 'rollback-record', 500, 1)
@@ -177,25 +171,6 @@ describe('PostgreSQL persistence infrastructure', () => {
       "SELECT count(*) FROM persistence_records WHERE external_key = 'rollback-record'",
     );
     expect(result.rows[0]?.count).toBe('0');
-  });
-
-  it('invalidates a transaction context after the transaction completes', async () => {
-    const unitOfWork = new DatabaseUnitOfWork(testDatabase.database);
-    let completedContext: TransactionContext | undefined;
-
-    await unitOfWork.transaction(context => {
-      completedContext = context;
-      return Promise.resolve();
-    });
-
-    const context = completedContext;
-    expect(context).toBeDefined();
-    if (context === undefined) {
-      throw new Error('Expected the transaction callback to receive a context');
-    }
-    expect(() => getTransactionDatabase(context)).toThrow(
-      'The transaction context is invalid or no longer available',
-    );
   });
 
   it('supports transaction-scoped row locking without exposing Drizzle to controllers', async () => {
@@ -261,7 +236,7 @@ describe('PostgreSQL persistence infrastructure', () => {
       ORDER BY schema_name
     `);
 
-    expect(purgedTables).toBe(9);
+    expect(purgedTables).toBe(8);
     expect(records.rows[0]?.count).toBe('0');
     expect(migrationSchemas.rows.map(row => row.schema_name)).toEqual([
       'drizzle',

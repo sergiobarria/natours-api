@@ -1,8 +1,6 @@
-import { z } from 'zod';
 import { FakeClock } from '../clock/clock.js';
 import { FakeEmailSender } from '../email/email-sender.js';
 import { stableJobId } from './job-id.js';
-import { JobRegistry } from './job.registry.js';
 
 describe('platform job contracts', () => {
   it('derives stable BullMQ-safe job ids', () => {
@@ -10,18 +8,6 @@ describe('platform job contracts', () => {
     expect(first).toBe(stableJobId('email.send', 'user:123'));
     expect(first).not.toBe(stableJobId('email.send', 'user:124'));
     expect(first).toMatch(/^job-[a-f0-9]{64}$/);
-  });
-
-  it('rejects duplicate and unknown job definitions', () => {
-    const registry = new JobRegistry();
-    const definition = {
-      handler: { execute: () => Promise.resolve() },
-      name: 'fixture.job',
-      schema: z.object({ value: z.string() }),
-    };
-    registry.register(definition);
-    expect(() => registry.register(definition)).toThrow('already registered');
-    expect(() => registry.get('missing.job')).toThrow('Unknown job type');
   });
 
   it('provides deterministic clock and email fakes', async () => {

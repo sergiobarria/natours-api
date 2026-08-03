@@ -49,11 +49,11 @@ describe('immutable audit persistence', () => {
     await expect(
       unitOfWork.transaction(async context => {
         await recorder.record(context, {
-          action: AUDIT_ACTION.tourChanged,
+          action: AUDIT_ACTION.profileChanged,
           actor: { type: 'user', userId: randomUUID() },
           eventKey: 'audit:fixture:rollback',
           targetId: randomUUID(),
-          targetType: 'tour',
+          targetType: 'user',
         });
         throw new Error('rollback');
       }),

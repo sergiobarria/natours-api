@@ -1,9 +1,8 @@
 import { ForbiddenException, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { asc, eq } from 'drizzle-orm';
 import { randomUUID } from 'node:crypto';
-import { AUDIT_RECORDER } from '../audit/audit.constants.js';
-import type { AuditRecorder } from '../audit/audit.types.js';
-import { DatabaseUnitOfWork, getTransactionDatabase } from '../database/database-unit-of-work.js';
+import { DrizzleAuditRecorder } from '../audit/drizzle-audit-recorder.js';
+import { DatabaseUnitOfWork } from '../database/database-unit-of-work.js';
 import { DATABASE } from '../database/database.constants.js';
 import type { Database } from '../database/database.types.js';
 import { users, type ApplicationRole } from '../database/schema/identity.js';
@@ -23,7 +22,7 @@ export class UsersService {
   constructor(
     @Inject(DATABASE) private readonly database: Database,
     @Inject(DatabaseUnitOfWork) private readonly unitOfWork: DatabaseUnitOfWork,
-    @Inject(AUDIT_RECORDER) private readonly audit: AuditRecorder,
+    private readonly audit: DrizzleAuditRecorder,
   ) {}
 
   async find(userId: string) {
@@ -44,14 +43,14 @@ export class UsersService {
   }
 
   updateProfile(userId: string, name: string, requestId?: string) {
-    return this.unitOfWork.transaction(async context => {
-      const [updated] = await getTransactionDatabase(context)
+    return this.unitOfWork.transaction(async transaction => {
+      const [updated] = await transaction
         .update(users)
         .set({ name: name.trim() })
         .where(eq(users.id, userId))
         .returning(userSelection);
       if (!updated) throw new NotFoundException('User not found.');
-      await this.audit.record(context, {
+      await this.audit.record(transaction, {
         action: 'user.profile_changed',
         actor: { type: 'user', userId },
         after: { changed: ['name'] },
@@ -67,8 +66,7 @@ export class UsersService {
   changeRole(actorId: string, targetId: string, role: ApplicationRole, requestId?: string) {
     if (actorId === targetId)
       throw new ForbiddenException('Administrators cannot change their own role.');
-    return this.unitOfWork.transaction(async context => {
-      const transaction = getTransactionDatabase(context);
+    return this.unitOfWork.transaction(async transaction => {
       const [existing] = await transaction
         .select({ role: users.role })
         .from(users)
@@ -81,7 +79,7 @@ export class UsersService {
         .where(eq(users.id, targetId))
         .returning(userSelection);
       if (!updated) throw new NotFoundException('User not found.');
-      await this.audit.record(context, {
+      await this.audit.record(transaction, {
         action: 'user.role_changed',
         actor: { type: 'user', userId: actorId },
         before: { role: existing.role },
@@ -103,14 +101,13 @@ export class UsersService {
   ): Promise<void> {
     if (administrative && actorId === targetId)
       throw new ForbiddenException('Administrators cannot delete themselves.');
-    return this.unitOfWork.transaction(async context => {
-      const transaction = getTransactionDatabase(context);
+    return this.unitOfWork.transaction(async transaction => {
       const [deleted] = await transaction
         .delete(users)
         .where(eq(users.id, targetId))
         .returning({ id: users.id, role: users.role });
       if (!deleted) throw new NotFoundException('User not found.');
-      await this.audit.record(context, {
+      await this.audit.record(transaction, {
         action: 'user.administered',
         actor: { type: 'user', userId: actorId },
         before: { active: true, role: deleted.role },

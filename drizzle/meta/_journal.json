@@ -29,6 +29,13 @@
       "when": 1785777416245,
       "tag": "0003_identity_access_management",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1785783415375,
+      "tag": "0004_drop-unused-health-history",
+      "breakpoints": true
     }
   ]
 }

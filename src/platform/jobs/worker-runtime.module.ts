@@ -1,7 +1,7 @@
 import { Module } from '@nestjs/common';
+import { IdentityEmailModule } from '../../identity/identity-email.module.js';
 import { JobWorkerLifecycle } from './job-worker.lifecycle.js';
 import { OutboxRelay } from './outbox-relay.js';
-import { WorkerHeartbeat } from '../../process/process-heartbeat.js';
 
-@Module({ providers: [JobWorkerLifecycle, OutboxRelay, WorkerHeartbeat] })
+@Module({ imports: [IdentityEmailModule], providers: [JobWorkerLifecycle, OutboxRelay] })
 export class WorkerRuntimeModule {}

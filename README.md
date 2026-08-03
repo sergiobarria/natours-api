@@ -59,13 +59,12 @@ pnpm openapi:generate # update openapi/openapi.json after an intentional contrac
 pnpm openapi:check    # fail when generated and committed contracts differ
 ```
 
-Build once, then run the three independently scalable processes:
+Build once, then run the two independently scalable processes:
 
 ```shell
 pnpm build
 pnpm start:prod       # API
 pnpm start:worker     # durable jobs and transactional outbox relay
-pnpm start:scheduler  # idempotent BullMQ scheduler registration
 ```
 
 Inspect and replay retained jobs without exposing their payloads:
@@ -80,10 +79,10 @@ The initial HTTP surface is:
 
 - `GET /api/v1` — API discovery response
 - `GET /health` — dependency-free, unversioned liveness
-- `GET /ready` — PostgreSQL, Redis, worker, and scheduler readiness
+- `GET /ready` — PostgreSQL and Redis readiness
 - `/docs` and `/docs-json` — Scalar API reference and OpenAPI JSON outside production
 
-Configuration is validated at startup. Production requires an explicit comma-separated `CORS_ORIGINS` allowlist. Requests accept an optional `x-request-id`; the API returns that ID (or a generated UUID) and includes it in structured logs. Deploy the API, worker, and scheduler separately and route traffic only to ready API instances.
+Configuration is validated at startup. Production requires an explicit comma-separated `CORS_ORIGINS` allowlist. Requests accept an optional `x-request-id`; the API returns that ID (or a generated UUID) and includes it in structured logs. Deploy the API and worker separately and route traffic only to ready API instances.
 
 ## Quality checks
 

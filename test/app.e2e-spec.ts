@@ -31,11 +31,7 @@ import type { Database } from '../src/database/database.types.js';
 import { outboxMessages } from '../src/database/schema/platform-jobs.js';
 import { users } from '../src/database/schema/identity.js';
 import { and, desc, eq, sql } from 'drizzle-orm';
-import {
-  presentCollection,
-  presentPaginated,
-  presentResource,
-} from '../src/http/response/response.presenter.js';
+import { presentPaginated } from '../src/http/response/response.presenter.js';
 
 interface TestErrorResponse {
   error: {
@@ -70,12 +66,7 @@ class ContractTestController {
 
   @Get('collection')
   collection() {
-    return presentCollection([{ id: 'first' }, { id: 'second' }]);
-  }
-
-  @Get('presented-resource')
-  presentedResource() {
-    return presentResource({ id: 'presented' });
+    return [{ id: 'first' }, { id: 'second' }];
   }
 
   @Get('pagination')
@@ -342,11 +333,6 @@ describe('application foundation (e2e)', () => {
       .get('/api/v1/contract-tests/collection')
       .expect(200)
       .expect({ data: [{ id: 'first' }, { id: 'second' }] });
-    await request(httpServer)
-      .get('/api/v1/contract-tests/presented-resource')
-      .expect(200)
-      .expect({ data: { id: 'presented' } });
-
     const paginated = await request(httpServer)
       .get('/api/v1/contract-tests/pagination')
       .expect(200);
@@ -370,32 +356,11 @@ describe('application foundation (e2e)', () => {
     await request(httpServer).get('/api/v1/health').expect(404);
   });
 
-  it('keeps liveness healthy while readiness reports missing process heartbeats', async () => {
+  it('reports liveness and dependency readiness outside the versioned API', async () => {
     await request(httpServer).get('/health').expect(200);
-    const readiness = await request(httpServer).get('/ready').expect(503);
-    const readinessBody = readiness.body as {
-      status: string;
-      error: Record<string, unknown>;
-    };
-    expect(readinessBody.status).toBe('error');
-    expect(Object.keys(readinessBody.error)).toEqual(
-      expect.arrayContaining(['scheduler', 'worker']),
-    );
+    const readiness = await request(httpServer).get('/ready').expect(200);
+    expect(readiness.body).toMatchObject({ status: 'ok' });
     await request(httpServer).get('/api/v1/ready').expect(404);
-  });
-
-  it('reports readiness when dependencies and both process roles are healthy', async () => {
-    const redis = app.get<RedisClient>(REDIS_CLIENT);
-    const prefix = app.get(AppConfigService).redisKeyPrefix;
-    const keys = [`${prefix}:heartbeat:worker:e2e`, `${prefix}:heartbeat:scheduler:e2e`];
-    await Promise.all(keys.map(key => redis.set(key, 'fresh', 'EX', 5)));
-    try {
-      const readiness = await request(httpServer).get('/ready').expect(200);
-      const body = readiness.body as { status: string };
-      expect(body.status).toBe('ok');
-    } finally {
-      await redis.del(...keys);
-    }
   });
 
   it('returns the standard error envelope when a named distributed policy is exceeded', async () => {
