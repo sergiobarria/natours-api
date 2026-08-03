@@ -99,3 +99,9 @@ Destructive database commands only accept names configured through
 accepted. Production always remains protected.
 
 Better Auth schema generation is an input to the reviewed Drizzle schema, not an alternative migration system. The persistence feature must also convert the package to native ESM and keep unit/e2e tooling compatible with ESM dependencies.
+
+Identity development uses Better Auth's native routes at `/api/v1/auth`. Nest starts with its
+automatic body parser disabled so the auth handler sees the request stream first; the Nest bridge
+then restores bounded JSON and URL-encoded parsing and preserves `req.rawBody` for future signed
+webhooks. Use `EMAIL_PROVIDER=fake` locally unless a Resend test key and verified sender are
+available. Never use a production Better Auth secret in local or CI configuration.

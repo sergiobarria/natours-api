@@ -100,6 +100,21 @@ const rawEnvironmentSchema = z
     [ENVIRONMENT_VARIABLES.healthSnapshotSchedule]: z.string().trim().min(1),
     [ENVIRONMENT_VARIABLES.operationsPruneSchedule]: z.string().trim().min(1),
     [ENVIRONMENT_VARIABLES.healthHistoryRetentionDays]: positiveInteger,
+    [ENVIRONMENT_VARIABLES.appUrl]: originSchema,
+    [ENVIRONMENT_VARIABLES.frontendUrl]: originSchema,
+    [ENVIRONMENT_VARIABLES.betterAuthUrl]: originSchema,
+    [ENVIRONMENT_VARIABLES.betterAuthSecret]: z.string().min(32),
+    [ENVIRONMENT_VARIABLES.betterAuthTrustedOrigins]: z.string().trim().min(1),
+    [ENVIRONMENT_VARIABLES.betterAuthSessionExpiresInSeconds]: positiveInteger,
+    [ENVIRONMENT_VARIABLES.betterAuthSessionUpdateAgeSeconds]: positiveInteger,
+    [ENVIRONMENT_VARIABLES.betterAuthVerificationExpiresInSeconds]: positiveInteger,
+    [ENVIRONMENT_VARIABLES.betterAuthPasswordResetExpiresInSeconds]: positiveInteger,
+    [ENVIRONMENT_VARIABLES.betterAuthMinPasswordLength]: positiveInteger,
+    [ENVIRONMENT_VARIABLES.betterAuthMaxPasswordLength]: positiveInteger,
+    [ENVIRONMENT_VARIABLES.emailProvider]: z.enum(['resend', 'fake']),
+    [ENVIRONMENT_VARIABLES.resendApiKey]: z.string(),
+    [ENVIRONMENT_VARIABLES.mailFromAddress]: z.email(),
+    [ENVIRONMENT_VARIABLES.mailFromName]: z.string().trim().min(1).max(100),
   })
   .superRefine((environment, context) => {
     if (environment.NODE_ENV === APP_ENVIRONMENT.production && !environment.CORS_ORIGINS?.trim()) {
@@ -118,6 +133,22 @@ const rawEnvironmentSchema = z
         code: 'custom',
         path: ['PROCESS_HEARTBEAT_TTL_SECONDS'],
         message: 'Heartbeat TTL must exceed every heartbeat interval',
+      });
+    }
+    if (
+      environment.BETTER_AUTH_MIN_PASSWORD_LENGTH >= environment.BETTER_AUTH_MAX_PASSWORD_LENGTH
+    ) {
+      context.addIssue({
+        code: 'custom',
+        path: ['BETTER_AUTH_MAX_PASSWORD_LENGTH'],
+        message: 'Maximum password length must exceed minimum password length',
+      });
+    }
+    if (environment.NODE_ENV === APP_ENVIRONMENT.production && !environment.RESEND_API_KEY) {
+      context.addIssue({
+        code: 'custom',
+        path: ['RESEND_API_KEY'],
+        message: 'RESEND_API_KEY is required in production',
       });
     }
   });
@@ -171,6 +202,21 @@ export interface Environment {
   HEALTH_SNAPSHOT_SCHEDULE: string;
   OPERATIONS_PRUNE_SCHEDULE: string;
   HEALTH_HISTORY_RETENTION_DAYS: number;
+  APP_URL: string;
+  FRONTEND_URL: string;
+  BETTER_AUTH_URL: string;
+  BETTER_AUTH_SECRET: string;
+  BETTER_AUTH_TRUSTED_ORIGINS: string;
+  BETTER_AUTH_SESSION_EXPIRES_IN_SECONDS: number;
+  BETTER_AUTH_SESSION_UPDATE_AGE_SECONDS: number;
+  BETTER_AUTH_VERIFICATION_EXPIRES_IN_SECONDS: number;
+  BETTER_AUTH_PASSWORD_RESET_EXPIRES_IN_SECONDS: number;
+  BETTER_AUTH_MIN_PASSWORD_LENGTH: number;
+  BETTER_AUTH_MAX_PASSWORD_LENGTH: number;
+  EMAIL_PROVIDER: 'resend' | 'fake';
+  RESEND_API_KEY: string;
+  MAIL_FROM_ADDRESS: string;
+  MAIL_FROM_NAME: string;
 }
 
 export function validateEnvironment(config: Record<string, unknown>): Environment {

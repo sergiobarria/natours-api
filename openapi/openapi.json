@@ -1,5 +1,8 @@
 {
-  "components": { "schemas": {} },
+  "components": {
+    "schemas": {},
+    "securitySchemes": { "bearerAuth": { "scheme": "bearer", "type": "http" } }
+  },
   "info": {
     "contact": {},
     "description": "HTTP API for the Natours application",
@@ -74,6 +77,154 @@
         },
         "summary": "Describe the API",
         "tags": ["application"]
+      }
+    },
+    "/api/v1/auth/get-session": {
+      "get": {
+        "operationId": "betterAuthGetSession",
+        "responses": {
+          "200": {
+            "description": "Native Better Auth response; not wrapped in the domain envelope."
+          },
+          "400": { "description": "Native Better Auth validation error." },
+          "401": { "description": "Native Better Auth authentication error." }
+        },
+        "security": [{ "bearerAuth": [] }],
+        "summary": "Resolve the current session",
+        "tags": ["native-authentication"]
+      }
+    },
+    "/api/v1/auth/request-password-reset": {
+      "post": {
+        "operationId": "betterAuthRequestPasswordReset",
+        "responses": {
+          "200": {
+            "description": "Native Better Auth response; not wrapped in the domain envelope."
+          },
+          "400": { "description": "Native Better Auth validation error." },
+          "401": { "description": "Native Better Auth authentication error." }
+        },
+        "summary": "Request an enumeration-safe password reset",
+        "tags": ["native-authentication"]
+      }
+    },
+    "/api/v1/auth/reset-password": {
+      "post": {
+        "operationId": "betterAuthResetPassword",
+        "responses": {
+          "200": {
+            "description": "Native Better Auth response; not wrapped in the domain envelope."
+          },
+          "400": { "description": "Native Better Auth validation error." },
+          "401": { "description": "Native Better Auth authentication error." }
+        },
+        "summary": "Reset a password and revoke all sessions",
+        "tags": ["native-authentication"]
+      }
+    },
+    "/api/v1/auth/send-verification-email": {
+      "post": {
+        "operationId": "betterAuthSendVerificationEmail",
+        "responses": {
+          "200": {
+            "description": "Native Better Auth response; not wrapped in the domain envelope."
+          },
+          "400": { "description": "Native Better Auth validation error." },
+          "401": { "description": "Native Better Auth authentication error." }
+        },
+        "summary": "Request email verification",
+        "tags": ["native-authentication"]
+      }
+    },
+    "/api/v1/auth/sign-in/email": {
+      "post": {
+        "operationId": "betterAuthSignInEmail",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "properties": {
+                  "email": { "format": "email", "type": "string" },
+                  "password": { "format": "password", "type": "string" }
+                },
+                "required": ["email", "password"],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Native response. Bearer session token is returned in the set-auth-token header.",
+            "headers": {
+              "set-auth-token": {
+                "description": "Bearer session token.",
+                "schema": { "type": "string" }
+              }
+            }
+          },
+          "400": { "description": "Native Better Auth validation error." },
+          "401": { "description": "Native Better Auth authentication error." }
+        },
+        "summary": "Sign in with email and password",
+        "tags": ["native-authentication"]
+      }
+    },
+    "/api/v1/auth/sign-out": {
+      "post": {
+        "operationId": "betterAuthSignOut",
+        "responses": {
+          "200": {
+            "description": "Native Better Auth response; not wrapped in the domain envelope."
+          },
+          "400": { "description": "Native Better Auth validation error." },
+          "401": { "description": "Native Better Auth authentication error." }
+        },
+        "security": [{ "bearerAuth": [] }],
+        "summary": "Revoke the current session",
+        "tags": ["native-authentication"]
+      }
+    },
+    "/api/v1/auth/sign-up/email": {
+      "post": {
+        "operationId": "betterAuthSignUpEmail",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "properties": {
+                  "email": { "format": "email", "type": "string" },
+                  "name": { "type": "string" },
+                  "password": { "format": "password", "type": "string" }
+                },
+                "required": ["email", "name", "password"],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Native Better Auth response; not wrapped in the domain envelope."
+          },
+          "400": { "description": "Native Better Auth validation error." },
+          "401": { "description": "Native Better Auth authentication error." }
+        },
+        "summary": "Register with email and password",
+        "tags": ["native-authentication"]
+      }
+    },
+    "/api/v1/auth/verify-email": {
+      "get": {
+        "operationId": "betterAuthVerifyEmail",
+        "responses": {
+          "302": { "description": "Verification result redirect." },
+          "400": { "description": "Native Better Auth validation error." }
+        },
+        "summary": "Verify an email token",
+        "tags": ["native-authentication"]
       }
     }
   },

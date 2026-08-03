@@ -186,6 +186,64 @@ export class AppConfigService {
     return this.config.get(ENVIRONMENT_VARIABLES.healthHistoryRetentionDays, { infer: true });
   }
 
+  get appUrl(): string {
+    return this.config.get(ENVIRONMENT_VARIABLES.appUrl, { infer: true });
+  }
+  get frontendUrl(): string {
+    return this.config.get(ENVIRONMENT_VARIABLES.frontendUrl, { infer: true });
+  }
+  get betterAuthUrl(): string {
+    return this.config.get(ENVIRONMENT_VARIABLES.betterAuthUrl, { infer: true });
+  }
+  get betterAuthSecret(): string {
+    return this.config.get(ENVIRONMENT_VARIABLES.betterAuthSecret, { infer: true });
+  }
+  get betterAuthTrustedOrigins(): string[] {
+    return this.config
+      .get(ENVIRONMENT_VARIABLES.betterAuthTrustedOrigins, { infer: true })
+      .split(',')
+      .map(value => value.trim())
+      .filter(Boolean);
+  }
+  get betterAuthSessionExpiresInSeconds(): number {
+    return this.config.get(ENVIRONMENT_VARIABLES.betterAuthSessionExpiresInSeconds, {
+      infer: true,
+    });
+  }
+  get betterAuthSessionUpdateAgeSeconds(): number {
+    return this.config.get(ENVIRONMENT_VARIABLES.betterAuthSessionUpdateAgeSeconds, {
+      infer: true,
+    });
+  }
+  get betterAuthVerificationExpiresInSeconds(): number {
+    return this.config.get(ENVIRONMENT_VARIABLES.betterAuthVerificationExpiresInSeconds, {
+      infer: true,
+    });
+  }
+  get betterAuthPasswordResetExpiresInSeconds(): number {
+    return this.config.get(ENVIRONMENT_VARIABLES.betterAuthPasswordResetExpiresInSeconds, {
+      infer: true,
+    });
+  }
+  get betterAuthMinPasswordLength(): number {
+    return this.config.get(ENVIRONMENT_VARIABLES.betterAuthMinPasswordLength, { infer: true });
+  }
+  get betterAuthMaxPasswordLength(): number {
+    return this.config.get(ENVIRONMENT_VARIABLES.betterAuthMaxPasswordLength, { infer: true });
+  }
+  get emailProvider(): Environment['EMAIL_PROVIDER'] {
+    return this.config.get(ENVIRONMENT_VARIABLES.emailProvider, { infer: true });
+  }
+  get resendApiKey(): string {
+    return this.config.get(ENVIRONMENT_VARIABLES.resendApiKey, { infer: true });
+  }
+  get mailFromAddress(): string {
+    return this.config.get(ENVIRONMENT_VARIABLES.mailFromAddress, { infer: true });
+  }
+  get mailFromName(): string {
+    return this.config.get(ENVIRONMENT_VARIABLES.mailFromName, { infer: true });
+  }
+
   get isDevelopment(): boolean {
     return this.environment === APP_ENVIRONMENT.development;
   }

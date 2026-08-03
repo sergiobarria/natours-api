@@ -9,6 +9,7 @@ import { createLoggerOptions } from './logging/logger.config.js';
 import { PlatformJobsModule } from './platform/jobs/platform-jobs.module.js';
 import { AuditModule } from './audit/audit.module.js';
 import { RateLimitModule } from './rate-limit/rate-limit.module.js';
+import { IdentityModule } from './identity/identity.module.js';
 
 @Module({
   imports: [
@@ -17,6 +18,7 @@ import { RateLimitModule } from './rate-limit/rate-limit.module.js';
     PlatformJobsModule,
     AuditModule,
     RateLimitModule,
+    IdentityModule,
     LoggerModule.forRootAsync({
       imports: [AppConfigModule],
       inject: [AppConfigService],
