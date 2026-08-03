@@ -63,6 +63,13 @@ describe('validateEnvironment', () => {
       RESEND_API_KEY: 're_test',
       MAIL_FROM_ADDRESS: 'hello@example.com',
       MAIL_FROM_NAME: 'Natours',
+      OBJECT_STORAGE_PROVIDER: 'fake',
+      R2_ACCESS_KEY_ID: '',
+      R2_SECRET_ACCESS_KEY: '',
+      R2_BUCKET: '',
+      R2_ENDPOINT: '',
+      R2_PUBLIC_URL: 'http://localhost:3000/media',
+      R2_REGION: 'auto',
     });
   });
 
@@ -132,5 +139,33 @@ describe('validateEnvironment', () => {
         EMAIL_PROVIDER: 'fake',
       }),
     ).toThrow('EMAIL_PROVIDER must be resend in production');
+  });
+
+  it('requires complete, valid R2 configuration when selected', () => {
+    expect(() =>
+      validateEnvironment({ ...databaseEnvironment, OBJECT_STORAGE_PROVIDER: 'r2' }),
+    ).toThrow('R2_ACCESS_KEY_ID is required when OBJECT_STORAGE_PROVIDER is r2');
+    expect(() =>
+      validateEnvironment({
+        ...databaseEnvironment,
+        OBJECT_STORAGE_PROVIDER: 'r2',
+        R2_ACCESS_KEY_ID: 'access',
+        R2_SECRET_ACCESS_KEY: 'secret',
+        R2_BUCKET: 'bucket',
+        R2_ENDPOINT: 'not-a-url',
+      }),
+    ).toThrow();
+  });
+
+  it('requires the R2 provider in production', () => {
+    expect(() =>
+      validateEnvironment({
+        ...databaseEnvironment,
+        NODE_ENV: APP_ENVIRONMENT.production,
+        CORS_ORIGINS: 'https://example.com',
+        EMAIL_PROVIDER: 'resend',
+        OBJECT_STORAGE_PROVIDER: 'fake',
+      }),
+    ).toThrow('OBJECT_STORAGE_PROVIDER must be r2 in production');
   });
 });

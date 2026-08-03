@@ -30,7 +30,12 @@ import { DATABASE } from '../src/database/database.constants.js';
 import type { Database } from '../src/database/database.types.js';
 import { outboxMessages } from '../src/database/schema/platform-jobs.js';
 import { users } from '../src/database/schema/identity.js';
-import { tourGuideAssignments, tours } from '../src/database/schema/tours.js';
+import {
+  tourDepartures,
+  tourGuideAssignments,
+  tourMedia,
+  tours,
+} from '../src/database/schema/tours.js';
 import { randomUUID } from 'node:crypto';
 import { and, desc, eq, sql } from 'drizzle-orm';
 import { presentPaginated } from '../src/http/response/response.presenter.js';
@@ -167,6 +172,69 @@ describe('application foundation (e2e)', () => {
       .expect({ data: { name: 'natours-api', version: '1' } });
   });
 
+  it('publishes chronological departures and ordered media on tour detail', async () => {
+    const tourId = randomUUID();
+    const slug = `operations-${tourId}`;
+    await database.insert(tours).values({
+      id: tourId,
+      name: 'Operations Tour',
+      slug,
+      summary: 'Operations fixture',
+      durationDays: 3,
+      maximumGroupSize: 12,
+      difficulty: 'easy',
+      priceCents: 100,
+      startLocationName: 'Start',
+      startLocationLatitude: 1,
+      startLocationLongitude: 1,
+      isActive: true,
+    });
+    const later = new Date(Date.now() + 172_800_000);
+    const earlier = new Date(Date.now() + 86_400_000);
+    await database.insert(tourDepartures).values([
+      { id: randomUUID(), tourId, startAt: later, availableSpots: 8 },
+      { id: randomUUID(), tourId, startAt: earlier, availableSpots: 7 },
+      {
+        id: randomUUID(),
+        tourId,
+        startAt: new Date(Date.now() - 86_400_000),
+        availableSpots: 6,
+      },
+    ]);
+    await database.insert(tourMedia).values({
+      id: randomUUID(),
+      tourId,
+      position: 1,
+      state: 'active',
+      keyPrefix: `test/tours/${tourId}/images/one`,
+      originalFormat: 'jpeg',
+      originalSize: 10,
+      width: 1200,
+      height: 800,
+    });
+
+    const departures = await request(httpServer)
+      .get(`/api/v1/tours/${tourId}/start-dates`)
+      .expect(200);
+    const departureBody = departures.body as {
+      data: Array<{ startAt: string; reservedSpots?: number }>;
+    };
+    expect(departureBody.data).toHaveLength(2);
+    expect(departureBody.data.map(row => row.startAt)).toEqual([
+      earlier.toISOString(),
+      later.toISOString(),
+    ]);
+    expect(departureBody.data[0]).not.toHaveProperty('reservedSpots');
+
+    const detail = await request(httpServer).get(`/api/v1/tours/${slug}`).expect(200);
+    const detailBody = detail.body as {
+      data: { startDates: unknown[]; images: Array<{ position: number; urls: { card: string } }> };
+    };
+    expect(detailBody.data.startDates).toHaveLength(2);
+    expect(detailBody.data.images[0]?.position).toBe(1);
+    expect(detailBody.data.images[0]?.urls.card).toContain('/card.webp');
+  });
+
   it('completes registration, verification, Bearer login, session, and logout natively', async () => {
     const email = `auth-${Date.now()}@example.com`;
     const password = 'correct horse battery staple';
@@ -289,6 +357,8 @@ describe('application foundation (e2e)', () => {
   });
 
   it('creates, updates, staffs, lists, and soft deletes tours through the Bearer flow', async () => {
+    await database.delete(tourMedia);
+    await database.delete(tourDepartures);
     await database.delete(tourGuideAssignments);
     await database.delete(tours);
     const leadId = randomUUID();
@@ -338,6 +408,67 @@ describe('application foundation (e2e)', () => {
       .set('authorization', `Bearer ${authenticatedToken}`)
       .send({ maximumGroupSize: 20 })
       .expect(200);
+    const departure = await request(httpServer)
+      .post(`/api/v1/tours/${body.data.id}/start-dates`)
+      .set('authorization', `Bearer ${authenticatedToken}`)
+      .send({ startAt: new Date(Date.now() + 86_400_000).toISOString(), availableSpots: 20 })
+      .expect(201);
+    expect((departure.body as { data: { reservedSpots: number } }).data.reservedSpots).toBe(0);
+    await request(httpServer)
+      .post(`/api/v1/tours/${body.data.id}/start-dates`)
+      .send({ startAt: new Date(Date.now() + 172_800_000).toISOString(), availableSpots: 1 })
+      .expect(401);
+    await request(httpServer)
+      .post(`/api/v1/tours/${body.data.id}/start-dates`)
+      .set('authorization', `Bearer ${authenticatedToken}`)
+      .send({ startAt: '2030-01-01T12:00:00', availableSpots: 1 })
+      .expect(400);
+    await request(httpServer)
+      .patch(`/api/v1/tours/${body.data.id}`)
+      .set('authorization', `Bearer ${authenticatedToken}`)
+      .send({ maximumGroupSize: 19 })
+      .expect(422);
+    const imageBuffer = Buffer.from(
+      'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=',
+      'base64',
+    );
+    await request(httpServer)
+      .post(`/api/v1/tours/${body.data.id}/images`)
+      .attach('images', imageBuffer, { filename: 'cover.png', contentType: 'image/png' })
+      .expect(401);
+    await request(httpServer)
+      .post(`/api/v1/tours/${body.data.id}/images`)
+      .set('authorization', `Bearer ${authenticatedToken}`)
+      .attach('images', Buffer.from('not an image'), {
+        filename: 'invalid.txt',
+        contentType: 'text/plain',
+      })
+      .expect(400);
+    const upload = await request(httpServer)
+      .post(`/api/v1/tours/${body.data.id}/images`)
+      .set('authorization', `Bearer ${authenticatedToken}`)
+      .attach('images', imageBuffer, { filename: 'cover.png', contentType: 'image/png' })
+      .attach('images', imageBuffer, { filename: 'gallery.png', contentType: 'image/png' })
+      .expect(201);
+    const uploadedImages = (upload.body as { data: Array<{ id: string }> }).data;
+    expect(uploadedImages).toHaveLength(2);
+    const enriched = await request(httpServer).get(`/api/v1/tours/${body.data.slug}`).expect(200);
+    expect(
+      (enriched.body as { data: { images: unknown[]; startDates: unknown[] } }).data,
+    ).toMatchObject({
+      images: [expect.objectContaining({ position: 1 }), expect.objectContaining({ position: 2 })],
+      startDates: [expect.objectContaining({ availableSpots: 20 })],
+    });
+    await request(httpServer)
+      .delete(`/api/v1/tours/${body.data.id}/images/${uploadedImages[0].id}`)
+      .set('authorization', `Bearer ${authenticatedToken}`)
+      .expect(204);
+    const afterImageDelete = await request(httpServer)
+      .get(`/api/v1/tours/${body.data.slug}`)
+      .expect(200);
+    expect(
+      (afterImageDelete.body as { data: { images: Array<{ position: number }> } }).data.images,
+    ).toEqual([expect.objectContaining({ position: 1 })]);
     await request(httpServer)
       .patch(`/api/v1/users/${guideId}/role`)
       .set('authorization', `Bearer ${authenticatedToken}`)

@@ -607,6 +607,138 @@
         "tags": ["tours"]
       }
     },
+    "/api/v1/tours/{tourId}/images": {
+      "post": {
+        "operationId": "MediaController_upload_v1",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "tourId",
+            "required": true,
+            "schema": { "format": "uuid" }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "properties": {
+                  "images": {
+                    "items": { "format": "binary", "type": "string" },
+                    "maxItems": 10,
+                    "minItems": 1,
+                    "type": "array"
+                  }
+                },
+                "required": ["images"],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": { "description": "Tour images uploaded and converted." }
+        },
+        "security": [{ "bearerAuth": [] }],
+        "tags": ["images"]
+      }
+    },
+    "/api/v1/tours/{tourId}/images/{imageId}": {
+      "delete": {
+        "operationId": "MediaController_delete_v1",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "imageId",
+            "required": true,
+            "schema": { "format": "uuid" }
+          },
+          {
+            "in": "path",
+            "name": "tourId",
+            "required": true,
+            "schema": { "format": "uuid" }
+          }
+        ],
+        "responses": { "204": { "description": "Tour image deleted." } },
+        "security": [{ "bearerAuth": [] }],
+        "tags": ["images"]
+      }
+    },
+    "/api/v1/tours/{tourId}/start-dates": {
+      "get": {
+        "operationId": "DeparturesController_list_v1",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "tourId",
+            "required": true,
+            "schema": { "format": "uuid" }
+          }
+        ],
+        "responses": {
+          "200": { "description": "Chronological upcoming active departures." }
+        },
+        "tags": ["departures"]
+      },
+      "post": {
+        "operationId": "DeparturesController_create_v1",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "tourId",
+            "required": true,
+            "schema": { "format": "uuid" }
+          }
+        ],
+        "responses": { "201": { "description": "Departure created." } },
+        "security": [{ "bearerAuth": [] }],
+        "tags": ["departures"]
+      }
+    },
+    "/api/v1/tours/{tourId}/start-dates/{departureId}": {
+      "delete": {
+        "operationId": "DeparturesController_delete_v1",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "departureId",
+            "required": true,
+            "schema": { "format": "uuid" }
+          },
+          {
+            "in": "path",
+            "name": "tourId",
+            "required": true,
+            "schema": { "format": "uuid" }
+          }
+        ],
+        "responses": { "204": { "description": "Departure soft deleted." } },
+        "security": [{ "bearerAuth": [] }],
+        "tags": ["departures"]
+      },
+      "patch": {
+        "operationId": "DeparturesController_update_v1",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "departureId",
+            "required": true,
+            "schema": { "format": "uuid" }
+          },
+          {
+            "in": "path",
+            "name": "tourId",
+            "required": true,
+            "schema": { "format": "uuid" }
+          }
+        ],
+        "responses": { "200": { "description": "Departure updated." } },
+        "security": [{ "bearerAuth": [] }],
+        "tags": ["departures"]
+      }
+    },
     "/api/v1/users": {
       "get": {
         "operationId": "UsersController_list_v1",

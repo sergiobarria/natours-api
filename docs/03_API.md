@@ -101,8 +101,9 @@ GET /api/v1/tours?search=forest&minDuration=3&maxDuration=10
 ```
 
 Unsupported parameters and malformed values return `400`. Pagination links retain the validated
-query. Every tour sort appends the UUID as a stable tie-breaker. Departures and their query options
-are added by F-05 when that resource exists.
+query. Every tour sort appends the UUID as a stable tie-breaker. Departure reads use the documented
+nested `/tours/{tourId}/start-dates` route and chronological ordering rather than tour-list query
+options.
 
 ## Endpoint groups
 
@@ -117,6 +118,16 @@ are added by F-05 when that resource exists.
 | Bookings       | `/bookings/*`                 | Verified owner create, list, detail, and cancellation                 |
 | Stripe webhook | `/stripe/webhook`             | Signed event ingestion with a dedicated limit                         |
 | Analytics      | `/tour-analytics/*`           | Protected rankings, statistics, and monthly plan                      |
+
+Departure operations use `GET|POST /tours/{tourId}/start-dates` and
+`PATCH|DELETE /tours/{tourId}/start-dates/{departureId}`. The public collection is chronological
+and omits reserved inventory. Writes accept `startAt`, `availableSpots`, and `isActive`; reserved
+spots are booking-owned and are never accepted from clients.
+
+Gallery upload uses `POST /tours/{tourId}/images` with one through ten binary `images` parts, each
+limited to 10 MB. Deletion uses `DELETE /tours/{tourId}/images/{imageId}`. Public tour detail adds
+ordered `images` with original, card, and thumbnail URLs and `startDates` with upcoming departures;
+catalog list resources remain compact.
 
 ## Stateful workflows
 

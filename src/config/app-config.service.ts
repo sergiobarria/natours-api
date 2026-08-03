@@ -50,6 +50,13 @@ export class AppConfigService {
   readonly resendApiKey: string;
   readonly mailFromAddress: string;
   readonly mailFromName: string;
+  readonly objectStorageProvider: Environment['OBJECT_STORAGE_PROVIDER'];
+  readonly r2AccessKeyId: string;
+  readonly r2SecretAccessKey: string;
+  readonly r2Bucket: string;
+  readonly r2Endpoint: string;
+  readonly r2PublicUrl: string;
+  readonly r2Region: string;
 
   constructor(environment: Environment) {
     this.environment = environment.NODE_ENV;
@@ -114,6 +121,13 @@ export class AppConfigService {
     this.resendApiKey = environment.RESEND_API_KEY;
     this.mailFromAddress = environment.MAIL_FROM_ADDRESS;
     this.mailFromName = environment.MAIL_FROM_NAME;
+    this.objectStorageProvider = environment.OBJECT_STORAGE_PROVIDER;
+    this.r2AccessKeyId = environment.R2_ACCESS_KEY_ID;
+    this.r2SecretAccessKey = environment.R2_SECRET_ACCESS_KEY;
+    this.r2Bucket = environment.R2_BUCKET;
+    this.r2Endpoint = environment.R2_ENDPOINT;
+    this.r2PublicUrl = environment.R2_PUBLIC_URL.replace(/\/$/, '');
+    this.r2Region = environment.R2_REGION;
   }
 
   get isDevelopment(): boolean {

@@ -6,6 +6,7 @@ import { DatabaseUnitOfWork } from '../../src/database/database-unit-of-work.js'
 import { databaseObjectName } from '../../src/database/schema/names.js';
 import { purgeDatabase } from '../../scripts/database/purge-database.js';
 import { persistenceChildren, persistenceRecords } from './fixtures/schema.js';
+import { tourDepartures, tourMedia, tours } from '../../src/database/schema/tours.js';
 import { createTestDatabase, TestDatabase } from './test-database.js';
 
 const lockObservationDelayMs = 75;
@@ -42,7 +43,7 @@ describe('PostgreSQL persistence infrastructure', () => {
         AND column_name = 'label'
     `);
 
-    expect(productionHistory.rows[0]?.count).toBe('6');
+    expect(productionHistory.rows[0]?.count).toBe('7');
     expect(fixtureHistory.rows[0]?.count).toBe('2');
     expect(upgradedColumn.rows).toEqual([{ column_name: 'label' }]);
   });
@@ -62,7 +63,7 @@ describe('PostgreSQL persistence infrastructure', () => {
       const after = await upgradeDatabase.pool.query<{ table_name: string }>(`
         SELECT table_name
         FROM information_schema.tables
-        WHERE table_schema = 'public' AND table_name IN ('accounts', 'audit_events', 'job_effects', 'outbox_messages', 'sessions', 'tour_guide_assignments', 'tours', 'users', 'verifications')
+        WHERE table_schema = 'public' AND table_name IN ('accounts', 'audit_events', 'job_effects', 'outbox_messages', 'sessions', 'tour_departures', 'tour_guide_assignments', 'tour_media', 'tours', 'users', 'verifications')
         ORDER BY table_name
       `);
       expect(after.rows).toEqual([
@@ -71,7 +72,9 @@ describe('PostgreSQL persistence infrastructure', () => {
         { table_name: 'job_effects' },
         { table_name: 'outbox_messages' },
         { table_name: 'sessions' },
+        { table_name: 'tour_departures' },
         { table_name: 'tour_guide_assignments' },
+        { table_name: 'tour_media' },
         { table_name: 'tours' },
         { table_name: 'users' },
         { table_name: 'verifications' },
@@ -79,6 +82,69 @@ describe('PostgreSQL persistence infrastructure', () => {
     } finally {
       await upgradeDatabase.release();
     }
+  });
+
+  it('enforces departure schedule and media ordering constraints', async () => {
+    const tourId = randomUUID();
+    await testDatabase.database.insert(tours).values({
+      id: tourId,
+      name: 'Operations Tour',
+      slug: `operations-${tourId}`,
+      summary: 'Operations fixture',
+      durationDays: 3,
+      maximumGroupSize: 12,
+      difficulty: 'easy',
+      priceCents: 100,
+      startLocationName: 'Start',
+      startLocationLatitude: 1,
+      startLocationLongitude: 1,
+    });
+    const startAt = new Date(Date.now() + 86_400_000);
+    await testDatabase.database.insert(tourDepartures).values({
+      id: randomUUID(),
+      tourId,
+      startAt,
+      availableSpots: 12,
+    });
+    await expect(
+      testDatabase.database.insert(tourDepartures).values({
+        id: randomUUID(),
+        tourId,
+        startAt,
+        availableSpots: 1,
+      }),
+    ).rejects.toMatchObject({
+      cause: { constraint: 'tour_departures_tour_id_start_at_unique' },
+    });
+    await expect(
+      testDatabase.database.insert(tourDepartures).values({
+        id: randomUUID(),
+        tourId,
+        startAt: new Date(startAt.getTime() + 1),
+        availableSpots: -1,
+      }),
+    ).rejects.toMatchObject({
+      cause: { constraint: 'tour_departures_available_spots_check' },
+    });
+
+    const media = {
+      tourId,
+      position: 1,
+      state: 'active' as const,
+      keyPrefix: `test/tours/${tourId}/images/one`,
+      originalFormat: 'jpeg',
+      originalSize: 10,
+      width: 10,
+      height: 10,
+    };
+    await testDatabase.database.insert(tourMedia).values({ id: randomUUID(), ...media });
+    await expect(
+      testDatabase.database.insert(tourMedia).values({
+        id: randomUUID(),
+        ...media,
+        keyPrefix: `${media.keyPrefix}-two`,
+      }),
+    ).rejects.toMatchObject({ cause: { constraint: 'tour_media_tour_id_position_unique' } });
   });
 
   it('uses UUID v4, timezone-aware timestamps, integer money, and soft deletion', async () => {
@@ -238,7 +304,7 @@ describe('PostgreSQL persistence infrastructure', () => {
       ORDER BY schema_name
     `);
 
-    expect(purgedTables).toBe(10);
+    expect(purgedTables).toBe(12);
     expect(records.rows[0]?.count).toBe('0');
     expect(migrationSchemas.rows.map(row => row.schema_name)).toEqual([
       'drizzle',

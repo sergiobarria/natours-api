@@ -43,6 +43,13 @@
       "when": 1785786396721,
       "tag": "0005_tour_catalog_guide_teams",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1785799094338,
+      "tag": "0006_tour_departures_media",
+      "breakpoints": true
     }
   ]
 }
