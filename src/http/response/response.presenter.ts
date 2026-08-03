@@ -8,7 +8,7 @@ const paginationPageParameter = 'page';
 const paginationPerPageParameter = 'limit';
 const paginatedResponseMarker = Symbol('PAGINATED_RESPONSE');
 
-type PresentedPaginatedResponse<T> = PaginatedResponse<T> & {
+export type PresentedPaginatedResponse<T> = PaginatedResponse<T> & {
   readonly [paginatedResponseMarker]: true;
 };
 function buildPaginationUrl(
