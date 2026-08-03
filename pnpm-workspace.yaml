@@ -1,0 +1,10 @@
+overrides:
+  baseline-browser-mapping: 2.11.10
+  js-yaml: 5.2.3
+
+minimumReleaseAge: 1440
+strictPeerDependencies: true
+
+allowBuilds:
+  '@scarf/scarf': false
+  unrs-resolver: true
