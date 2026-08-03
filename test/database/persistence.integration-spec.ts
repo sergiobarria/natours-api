@@ -46,9 +46,36 @@ describe('PostgreSQL persistence infrastructure', () => {
         AND column_name = 'label'
     `);
 
-    expect(productionHistory.rows[0]?.count).toBe('1');
+    expect(productionHistory.rows[0]?.count).toBe('2');
     expect(fixtureHistory.rows[0]?.count).toBe('2');
     expect(upgradedColumn.rows).toEqual([{ column_name: 'label' }]);
+  });
+
+  it('upgrades a database from the SBC-11 production baseline', async () => {
+    const upgradeDatabase = await createTestDatabase();
+    try {
+      await upgradeDatabase.migrateProductionBaseline();
+      const before = await upgradeDatabase.pool.query<{ table_name: string }>(`
+        SELECT table_name
+        FROM information_schema.tables
+        WHERE table_schema = 'public' AND table_name = 'outbox_messages'
+      `);
+      expect(before.rows).toEqual([]);
+
+      await upgradeDatabase.migrateProduction();
+      const after = await upgradeDatabase.pool.query<{ table_name: string }>(`
+        SELECT table_name
+        FROM information_schema.tables
+        WHERE table_schema = 'public' AND table_name IN ('job_effects', 'outbox_messages')
+        ORDER BY table_name
+      `);
+      expect(after.rows).toEqual([
+        { table_name: 'job_effects' },
+        { table_name: 'outbox_messages' },
+      ]);
+    } finally {
+      await upgradeDatabase.release();
+    }
   });
 
   it('uses UUID v4, timezone-aware timestamps, integer money, and soft deletion', async () => {
@@ -228,7 +255,7 @@ describe('PostgreSQL persistence infrastructure', () => {
       ORDER BY schema_name
     `);
 
-    expect(purgedTables).toBe(2);
+    expect(purgedTables).toBe(4);
     expect(records.rows[0]?.count).toBe('0');
     expect(migrationSchemas.rows.map(row => row.schema_name)).toEqual([
       'drizzle',

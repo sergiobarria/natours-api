@@ -6,11 +6,13 @@ import { AppConfigModule } from './config/config.module.js';
 import { DatabaseModule } from './database/database.module.js';
 import { HealthModule } from './health/health.module.js';
 import { createLoggerOptions } from './logging/logger.config.js';
+import { PlatformJobsModule } from './platform/jobs/platform-jobs.module.js';
 
 @Module({
   imports: [
     AppConfigModule,
     DatabaseModule,
+    PlatformJobsModule,
     LoggerModule.forRootAsync({
       imports: [AppConfigModule],
       inject: [AppConfigService],

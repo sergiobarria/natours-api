@@ -13,12 +13,16 @@ import * as schema from './fixtures/schema.js';
 const maintenanceDatabaseName = 'postgres';
 const fixtureMigrationsFolder = fileURLToPath(new URL('./fixtures/migrations', import.meta.url));
 const productionMigrationsFolder = fileURLToPath(new URL('../../drizzle', import.meta.url));
+const productionBaselineMigrationsFolder = fileURLToPath(
+  new URL('./fixtures/production-baseline', import.meta.url),
+);
 
 export interface TestDatabase {
   database: Database;
   fixtureDatabase: ReturnType<typeof drizzle<typeof schema>>;
   migrateFixtures(): Promise<void>;
   migrateProduction(): Promise<void>;
+  migrateProductionBaseline(): Promise<void>;
   pool: Pool;
   release(): Promise<void>;
   url: string;
@@ -71,6 +75,9 @@ export async function createTestDatabase(): Promise<TestDatabase> {
     },
     migrateProduction: async () => {
       await migrate(database, { migrationsFolder: productionMigrationsFolder });
+    },
+    migrateProductionBaseline: async () => {
+      await migrate(database, { migrationsFolder: productionBaselineMigrationsFolder });
     },
     release: async () => {
       await pool.end();

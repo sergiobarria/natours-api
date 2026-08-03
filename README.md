@@ -28,17 +28,17 @@ The API uses PostgreSQL through Drizzle. With DBngin, create dedicated `natours_
 `natours_test` databases on the default passwordless local PostgreSQL instance. The example
 environment file is already configured for that setup.
 
-An optional PostgreSQL 18 container is available on port `5433` so it can run alongside DBngin:
+Optional PostgreSQL 18 and Redis 8.8 containers are available on ports `5433` and `6380`:
 
 ```shell
-docker compose up -d postgres
+docker compose up -d postgres redis
 DATABASE_URL=postgresql://postgres:postgres@localhost:5433/natours_dev pnpm db:migrate
 ```
 
 The database workflow is:
 
 ```shell
-pnpm db:generate -- --name=describe_change # generate a committed SQL migration
+pnpm db:generate --name=describe_change    # generate a committed SQL migration
 pnpm db:check                              # validate migration history
 pnpm db:migrate                            # apply pending migrations
 pnpm db:seed                               # canonical data, then local demo data
@@ -59,6 +59,23 @@ pnpm openapi:generate # update openapi/openapi.json after an intentional contrac
 pnpm openapi:check    # fail when generated and committed contracts differ
 ```
 
+Build once, then run the three independently scalable processes:
+
+```shell
+pnpm build
+pnpm start:prod       # API
+pnpm start:worker     # durable jobs and transactional outbox relay
+pnpm start:scheduler  # idempotent BullMQ scheduler registration
+```
+
+Inspect and replay retained jobs without exposing their payloads:
+
+```shell
+pnpm jobs:list-failed --limit=20
+pnpm jobs:inspect --id=<job-id>
+pnpm jobs:replay --id=<job-id> --state=failed
+```
+
 The initial HTTP surface is:
 
 - `GET /api/v1` — API discovery response
@@ -75,10 +92,13 @@ pnpm lint
 pnpm typecheck
 pnpm test
 pnpm test:integration
+pnpm test:redis
 pnpm test:e2e
+pnpm test:processes
 pnpm openapi:check
 pnpm build
 ```
 
 See `docs/01_SPEC.md` for the product contract and `docs/05_DEVELOPMENT.md` for the contributor
-workflow. Redis, background workers, scheduling, and Sentry remain planned capabilities.
+workflow. Resend is the selected future email provider; its live adapter arrives with identity
+delivery. Sentry remains a planned capability.

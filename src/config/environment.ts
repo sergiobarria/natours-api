@@ -19,6 +19,14 @@ const databaseUrlSchema = z
     message: 'DATABASE_URL must use the postgres or postgresql protocol',
   });
 
+const redisUrlSchema = z
+  .url()
+  .refine(url => ['redis:', 'rediss:'].includes(new URL(url).protocol), {
+    message: 'REDIS_URL must use the redis or rediss protocol',
+  });
+
+const positiveInteger = z.coerce.number().int().positive();
+
 const rawEnvironmentSchema = z
   .object({
     [ENVIRONMENT_VARIABLES.nodeEnv]: z.enum(APP_ENVIRONMENTS).default(APP_ENVIRONMENT.development),
@@ -45,6 +53,33 @@ const rawEnvironmentSchema = z
       .int()
       .min(1_000)
       .default(DATABASE_DEFAULTS.poolConnectionTimeoutMs),
+    [ENVIRONMENT_VARIABLES.redisUrl]: redisUrlSchema,
+    [ENVIRONMENT_VARIABLES.redisKeyPrefix]: z.string().trim().min(1).max(64),
+    [ENVIRONMENT_VARIABLES.redisConnectTimeoutMs]: positiveInteger,
+    [ENVIRONMENT_VARIABLES.redisCommandTimeoutMs]: positiveInteger,
+    [ENVIRONMENT_VARIABLES.redisMaxRetriesPerRequest]: positiveInteger,
+    [ENVIRONMENT_VARIABLES.jobsQueueName]: z
+      .string()
+      .trim()
+      .min(1)
+      .max(128)
+      .regex(
+        /^[a-zA-Z0-9_-]+$/,
+        'JOBS_QUEUE_NAME may contain letters, numbers, underscores, and hyphens',
+      ),
+    [ENVIRONMENT_VARIABLES.jobsAttempts]: positiveInteger.max(100),
+    [ENVIRONMENT_VARIABLES.jobsBackoffDelayMs]: positiveInteger,
+    [ENVIRONMENT_VARIABLES.jobsBackoffJitter]: z.coerce.number().min(0).max(1),
+    [ENVIRONMENT_VARIABLES.jobsWorkerConcurrency]: positiveInteger,
+    [ENVIRONMENT_VARIABLES.jobsLockDurationMs]: positiveInteger,
+    [ENVIRONMENT_VARIABLES.jobsMaxStalledCount]: z.coerce.number().int().min(0),
+    [ENVIRONMENT_VARIABLES.jobsRemoveOnCompleteAgeSeconds]: positiveInteger,
+    [ENVIRONMENT_VARIABLES.jobsRemoveOnCompleteCount]: positiveInteger,
+    [ENVIRONMENT_VARIABLES.jobsRemoveOnFailAgeSeconds]: positiveInteger,
+    [ENVIRONMENT_VARIABLES.jobsRemoveOnFailCount]: positiveInteger,
+    [ENVIRONMENT_VARIABLES.outboxPollIntervalMs]: positiveInteger,
+    [ENVIRONMENT_VARIABLES.outboxBatchSize]: positiveInteger.max(1_000),
+    [ENVIRONMENT_VARIABLES.processShutdownTimeoutMs]: positiveInteger,
   })
   .superRefine((environment, context) => {
     if (environment.NODE_ENV === APP_ENVIRONMENT.production && !environment.CORS_ORIGINS?.trim()) {
@@ -66,6 +101,25 @@ export interface Environment {
   DATABASE_POOL_MAX: number;
   DATABASE_POOL_IDLE_TIMEOUT_MS: number;
   DATABASE_POOL_CONNECTION_TIMEOUT_MS: number;
+  REDIS_URL: string;
+  REDIS_KEY_PREFIX: string;
+  REDIS_CONNECT_TIMEOUT_MS: number;
+  REDIS_COMMAND_TIMEOUT_MS: number;
+  REDIS_MAX_RETRIES_PER_REQUEST: number;
+  JOBS_QUEUE_NAME: string;
+  JOBS_ATTEMPTS: number;
+  JOBS_BACKOFF_DELAY_MS: number;
+  JOBS_BACKOFF_JITTER: number;
+  JOBS_WORKER_CONCURRENCY: number;
+  JOBS_LOCK_DURATION_MS: number;
+  JOBS_MAX_STALLED_COUNT: number;
+  JOBS_REMOVE_ON_COMPLETE_AGE_SECONDS: number;
+  JOBS_REMOVE_ON_COMPLETE_COUNT: number;
+  JOBS_REMOVE_ON_FAIL_AGE_SECONDS: number;
+  JOBS_REMOVE_ON_FAIL_COUNT: number;
+  OUTBOX_POLL_INTERVAL_MS: number;
+  OUTBOX_BATCH_SIZE: number;
+  PROCESS_SHUTDOWN_TIMEOUT_MS: number;
 }
 
 export function validateEnvironment(config: Record<string, unknown>): Environment {

@@ -13,6 +13,7 @@ const config: Config = {
     '^(\\.{1,2}/.*)\\.js$': '$1',
   },
   rootDir: '.',
+  setupFiles: ['<rootDir>/test/setup-env.ts'],
   testEnvironment: 'node',
   testMatch: ['<rootDir>/src/**/*.spec.ts', '<rootDir>/scripts/**/*.spec.ts'],
   transform: {
