@@ -18,6 +18,6 @@ const emailSenderProvider: Provider<EmailSender> = {
 @Module({
   imports: [PlatformJobsModule],
   providers: [emailSenderProvider, AuthEmailJob, AuthEmailOutbox],
-  exports: [EMAIL_SENDER, AuthEmailOutbox],
+  exports: [EMAIL_SENDER, AuthEmailJob, AuthEmailOutbox],
 })
 export class IdentityEmailModule {}

@@ -4,8 +4,7 @@ import { APIError } from 'better-auth';
 import { fromNodeHeaders } from 'better-auth/node';
 import type { IncomingHttpHeaders } from 'node:http';
 import { randomUUID } from 'node:crypto';
-import { AUDIT_RECORDER } from '../audit/audit.constants.js';
-import type { AuditRecorder } from '../audit/audit.types.js';
+import { DrizzleAuditRecorder } from '../audit/drizzle-audit-recorder.js';
 import { DatabaseUnitOfWork } from '../database/database-unit-of-work.js';
 
 @Injectable()
@@ -13,7 +12,7 @@ export class AccountSecurityService {
   constructor(
     @Inject(AuthService) private readonly auth: AuthService,
     @Inject(DatabaseUnitOfWork) private readonly unitOfWork: DatabaseUnitOfWork,
-    @Inject(AUDIT_RECORDER) private readonly audit: AuditRecorder,
+    private readonly audit: DrizzleAuditRecorder,
   ) {}
 
   async changePassword(
@@ -78,9 +77,9 @@ export class AccountSecurityService {
     after: Record<string, unknown>,
     requestId?: string,
   ): Promise<void> {
-    return this.unitOfWork.transaction(context =>
+    return this.unitOfWork.transaction(transaction =>
       this.audit
-        .record(context, {
+        .record(transaction, {
           action: 'account.security_changed',
           actor: { type: 'user', userId },
           after,

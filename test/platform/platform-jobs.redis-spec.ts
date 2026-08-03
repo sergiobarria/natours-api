@@ -2,7 +2,6 @@ import { setTimeout as delay } from 'node:timers/promises';
 import { randomUUID } from 'node:crypto';
 import { Queue, QueueEvents } from 'bullmq';
 import { Redis } from 'ioredis';
-import { z } from 'zod';
 import type { AppConfigService } from '../../src/config/app-config.service.js';
 import { DatabaseUnitOfWork } from '../../src/database/database-unit-of-work.js';
 import { jobEffects } from '../../src/database/schema/platform-jobs.js';
@@ -10,9 +9,19 @@ import { BullJobDispatcher } from '../../src/platform/jobs/bull-job-dispatcher.j
 import { JobOperationsService } from '../../src/platform/jobs/job-operations.service.js';
 import { JobWorkerLifecycle } from '../../src/platform/jobs/job-worker.lifecycle.js';
 import { RedisThrottlerStorage } from '../../src/rate-limit/redis-throttler.storage.js';
-import { JobRegistry } from '../../src/platform/jobs/job.registry.js';
+import { AUTH_EMAIL_JOB, AUTH_EMAIL_TYPE } from '../../src/identity/identity.constants.js';
 import { purgeDatabase } from '../../scripts/database/purge-database.js';
 import { createTestDatabase, type TestDatabase } from '../database/test-database.js';
+
+function authEmailPayload(idempotencyKey: string) {
+  return {
+    expiresInSeconds: 3_600,
+    idempotencyKey,
+    recipient: 'user@example.com',
+    type: AUTH_EMAIL_TYPE.verification,
+    url: 'https://example.com/verify',
+  };
+}
 
 async function waitForState(
   queue: Queue,
@@ -38,7 +47,6 @@ describe('Redis and BullMQ platform jobs', () => {
   let worker: JobWorkerLifecycle;
   let dispatcher: BullJobDispatcher;
   let operations: JobOperationsService;
-  let registry: JobRegistry;
   let unitOfWork: DatabaseUnitOfWork;
   let calls = 0;
   let failuresRemaining = 0;
@@ -73,30 +81,25 @@ describe('Redis and BullMQ platform jobs', () => {
     });
     await queueEvents.waitUntilReady();
 
-    registry = new JobRegistry();
-    registry.register({
-      handler: {
-        execute: () => {
-          calls += 1;
-          if (failuresRemaining > 0) {
-            failuresRemaining -= 1;
-            return Promise.reject(new Error('password=hidden queue fixture failure'));
-          }
-          return Promise.resolve();
-        },
+    const authEmail = {
+      execute: () => {
+        calls += 1;
+        if (failuresRemaining > 0) {
+          failuresRemaining -= 1;
+          return Promise.reject(new Error('password=hidden queue fixture failure'));
+        }
+        return Promise.resolve();
       },
-      name: 'fixture.effect',
-      schema: z.object({ value: z.string() }),
-    });
+    };
 
     unitOfWork = new DatabaseUnitOfWork(testDatabase.database);
     worker = new JobWorkerLifecycle(
       config,
-      registry,
       unitOfWork,
+      authEmail,
       () => new Redis(redisUrl, { maxRetriesPerRequest: null }),
     );
-    dispatcher = new BullJobDispatcher(queue, config, registry);
+    dispatcher = new BullJobDispatcher(queue, config);
     operations = new JobOperationsService(queue);
     worker.onModuleInit();
   });
@@ -127,13 +130,13 @@ describe('Redis and BullMQ platform jobs', () => {
   it('deduplicates delivery and commits one domain effect', async () => {
     const first = await dispatcher.dispatch({
       idempotencyKey: 'fixture:deduplicate',
-      name: 'fixture.effect',
-      payload: { value: 'first' },
+      name: AUTH_EMAIL_JOB,
+      payload: authEmailPayload('fixture:deduplicate'),
     });
     const second = await dispatcher.dispatch({
       idempotencyKey: 'fixture:deduplicate',
-      name: 'fixture.effect',
-      payload: { value: 'second' },
+      name: AUTH_EMAIL_JOB,
+      payload: authEmailPayload('fixture:deduplicate'),
     });
     expect(second.id).toBe(first.id);
     await waitForState(queue, first.id, 'completed');
@@ -146,8 +149,8 @@ describe('Redis and BullMQ platform jobs', () => {
     failuresRemaining = 1;
     const queued = await dispatcher.dispatch({
       idempotencyKey: 'fixture:retry',
-      name: 'fixture.effect',
-      payload: { value: 'retry' },
+      name: AUTH_EMAIL_JOB,
+      payload: authEmailPayload('fixture:retry'),
     });
     await waitForState(queue, queued.id, 'completed');
 
@@ -159,8 +162,8 @@ describe('Redis and BullMQ platform jobs', () => {
     failuresRemaining = 3;
     const queued = await dispatcher.dispatch({
       idempotencyKey: 'fixture:failure',
-      name: 'fixture.effect',
-      payload: { value: 'failure' },
+      name: AUTH_EMAIL_JOB,
+      payload: authEmailPayload('fixture:failure'),
     });
     await waitForState(queue, queued.id, 'failed');
 

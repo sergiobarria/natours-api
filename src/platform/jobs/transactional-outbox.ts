@@ -1,30 +1,21 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { getTransactionDatabase } from '../../database/database-unit-of-work.js';
+import type { DatabaseTransaction } from '../../database/database.types.js';
 import { outboxMessages } from '../../database/schema/platform-jobs.js';
 import { CLOCK, type Clock } from '../clock/clock.js';
-import { JobRegistry } from './job.registry.js';
-import type { OutboxMessage, TransactionalOutbox } from './job.types.js';
+import type { OutboxMessage } from './job.types.js';
 
 @Injectable()
-export class DrizzleTransactionalOutbox implements TransactionalOutbox {
-  constructor(
-    @Inject(CLOCK) private readonly clock: Clock,
-    private readonly registry: JobRegistry,
-  ) {}
+export class TransactionalOutbox {
+  constructor(@Inject(CLOCK) private readonly clock: Clock) {}
 
-  async enqueue(
-    context: Parameters<TransactionalOutbox['enqueue']>[0],
-    message: OutboxMessage,
-  ): Promise<boolean> {
-    const definition = this.registry.get(message.name);
-    const payload = definition.schema.parse(message.payload);
-    const inserted = await getTransactionDatabase(context)
+  async enqueue(transaction: DatabaseTransaction, message: OutboxMessage): Promise<boolean> {
+    const inserted = await transaction
       .insert(outboxMessages)
       .values({
         availableAt: message.availableAt ?? this.clock.now(),
         idempotencyKey: message.idempotencyKey,
         jobName: message.name,
-        payload,
+        payload: message.payload,
       })
       .onConflictDoNothing()
       .returning({ id: outboxMessages.id });

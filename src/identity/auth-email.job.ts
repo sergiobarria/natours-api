@@ -1,9 +1,7 @@
-import { Inject, Injectable, OnModuleInit } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import { z } from 'zod';
 import { EMAIL_SENDER, type EmailSender } from '../platform/email/email-sender.js';
-import type { TransactionContext } from '../database/database-unit-of-work.js';
-import { JobRegistry } from '../platform/jobs/job.registry.js';
-import { AUTH_EMAIL_JOB, AUTH_EMAIL_TYPE } from './identity.constants.js';
+import { AUTH_EMAIL_TYPE } from './identity.constants.js';
 
 const authEmailSchema = z.object({
   expiresInSeconds: z.number().int().positive(),
@@ -13,25 +11,17 @@ const authEmailSchema = z.object({
   url: z.url(),
 });
 
-type AuthEmailPayload = z.infer<typeof authEmailSchema>;
+export type AuthEmailPayload = z.infer<typeof authEmailSchema>;
+
+export function parseAuthEmailPayload(payload: unknown): AuthEmailPayload {
+  return authEmailSchema.parse(payload);
+}
 
 @Injectable()
-export class AuthEmailJob implements OnModuleInit {
-  constructor(
-    @Inject(JobRegistry) private readonly registry: JobRegistry,
-    @Inject(EMAIL_SENDER) private readonly sender: EmailSender,
-  ) {}
+export class AuthEmailJob {
+  constructor(@Inject(EMAIL_SENDER) private readonly sender: EmailSender) {}
 
-  onModuleInit(): void {
-    this.registry.register({
-      handler: this,
-      name: AUTH_EMAIL_JOB,
-      schema: authEmailSchema,
-    });
-  }
-
-  async execute(payload: AuthEmailPayload, _context: TransactionContext): Promise<void> {
-    void _context;
+  async execute(payload: AuthEmailPayload): Promise<void> {
     const content = this.content(payload);
     await this.sender.send({
       html: `<p>${content.introduction}</p><p><a href="${payload.url}">${content.action}</a></p><p>This link expires in ${Math.ceil(payload.expiresInSeconds / 60)} minutes.</p>`,

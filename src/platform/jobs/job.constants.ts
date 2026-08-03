@@ -1,5 +1,3 @@
-export const JOB_DISPATCHER = Symbol('JOB_DISPATCHER');
-export const OUTBOX = Symbol('OUTBOX');
 export const JOB_QUEUE = Symbol('JOB_QUEUE');
 
 export const PROCESS_ROLE = {

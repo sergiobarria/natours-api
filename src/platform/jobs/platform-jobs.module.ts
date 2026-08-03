@@ -7,10 +7,9 @@ import { REDIS_CLIENT } from '../redis/redis.constants.js';
 import { RedisModule } from '../redis/redis.module.js';
 import type { RedisClient } from '../redis/redis.types.js';
 import { BullJobDispatcher } from './bull-job-dispatcher.js';
-import { JOB_DISPATCHER, JOB_QUEUE, OUTBOX } from './job.constants.js';
+import { JOB_QUEUE } from './job.constants.js';
 import { JobQueueLifecycle } from './job-queue.lifecycle.js';
-import { JobRegistry } from './job.registry.js';
-import { DrizzleTransactionalOutbox } from './transactional-outbox.js';
+import { TransactionalOutbox } from './transactional-outbox.js';
 
 const clockProvider: Provider = {
   provide: CLOCK,
@@ -34,13 +33,10 @@ const queueProvider: Provider<Queue> = {
   providers: [
     clockProvider,
     queueProvider,
-    JobRegistry,
     BullJobDispatcher,
-    DrizzleTransactionalOutbox,
+    TransactionalOutbox,
     JobQueueLifecycle,
-    { provide: JOB_DISPATCHER, useExisting: BullJobDispatcher },
-    { provide: OUTBOX, useExisting: DrizzleTransactionalOutbox },
   ],
-  exports: [CLOCK, JOB_DISPATCHER, JOB_QUEUE, OUTBOX, JobRegistry],
+  exports: [CLOCK, JOB_QUEUE, BullJobDispatcher, TransactionalOutbox],
 })
 export class PlatformJobsModule {}

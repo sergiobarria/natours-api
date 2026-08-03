@@ -1,5 +1,3 @@
-export const AUDIT_RECORDER = Symbol('AUDIT_RECORDER');
-
 export const AUDIT_ACTION = {
   userAdministered: 'user.administered',
   roleChanged: 'user.role_changed',

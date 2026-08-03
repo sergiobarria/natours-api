@@ -2,11 +2,7 @@ import { setTimeout as delay } from 'node:timers/promises';
 import { randomUUID } from 'node:crypto';
 import { eq, sql } from 'drizzle-orm';
 import { TEST_DATABASE_WORKER_MARKER } from '../../scripts/database/database-script.constants.js';
-import {
-  DatabaseUnitOfWork,
-  getTransactionDatabase,
-} from '../../src/database/database-unit-of-work.js';
-import type { TransactionContext } from '../../src/database/database-unit-of-work.js';
+import { DatabaseUnitOfWork } from '../../src/database/database-unit-of-work.js';
 import { databaseObjectName } from '../../src/database/schema/names.js';
 import { purgeDatabase } from '../../scripts/database/purge-database.js';
 import { persistenceChildren, persistenceRecords } from './fixtures/schema.js';
@@ -162,8 +158,7 @@ describe('PostgreSQL persistence infrastructure', () => {
     const recordId = randomUUID();
 
     await expect(
-      unitOfWork.transaction(async context => {
-        const transaction = getTransactionDatabase(context);
+      unitOfWork.transaction(async transaction => {
         await transaction.execute(sql`
           INSERT INTO persistence_records (id, external_key, amount_in_cents, sequence)
           VALUES (${recordId}, 'rollback-record', 500, 1)
@@ -176,25 +171,6 @@ describe('PostgreSQL persistence infrastructure', () => {
       "SELECT count(*) FROM persistence_records WHERE external_key = 'rollback-record'",
     );
     expect(result.rows[0]?.count).toBe('0');
-  });
-
-  it('invalidates a transaction context after the transaction completes', async () => {
-    const unitOfWork = new DatabaseUnitOfWork(testDatabase.database);
-    let completedContext: TransactionContext | undefined;
-
-    await unitOfWork.transaction(context => {
-      completedContext = context;
-      return Promise.resolve();
-    });
-
-    const context = completedContext;
-    expect(context).toBeDefined();
-    if (context === undefined) {
-      throw new Error('Expected the transaction callback to receive a context');
-    }
-    expect(() => getTransactionDatabase(context)).toThrow(
-      'The transaction context is invalid or no longer available',
-    );
   });
 
   it('supports transaction-scoped row locking without exposing Drizzle to controllers', async () => {

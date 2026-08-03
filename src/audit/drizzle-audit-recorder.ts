@@ -1,16 +1,13 @@
 import { Injectable } from '@nestjs/common';
-import { getTransactionDatabase } from '../database/database-unit-of-work.js';
 import { auditEvents } from '../database/schema/operations.js';
 import { sanitizeAuditMetadata } from './audit-sanitizer.js';
-import type { AuditRecorder, RecordAuditEvent } from './audit.types.js';
+import type { RecordAuditEvent } from './audit.types.js';
+import type { DatabaseTransaction } from '../database/database.types.js';
 
 @Injectable()
-export class DrizzleAuditRecorder implements AuditRecorder {
-  async record(
-    context: Parameters<AuditRecorder['record']>[0],
-    event: RecordAuditEvent,
-  ): Promise<boolean> {
-    const inserted = await getTransactionDatabase(context)
+export class DrizzleAuditRecorder {
+  async record(transaction: DatabaseTransaction, event: RecordAuditEvent): Promise<boolean> {
+    const inserted = await transaction
       .insert(auditEvents)
       .values({
         action: event.action,

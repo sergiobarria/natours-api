@@ -1,33 +1,24 @@
 import { eq } from 'drizzle-orm';
-import { z } from 'zod';
 import { DatabaseUnitOfWork } from '../../src/database/database-unit-of-work.js';
 import { outboxMessages } from '../../src/database/schema/platform-jobs.js';
 import { FakeClock } from '../../src/platform/clock/clock.js';
 import { OutboxRelay } from '../../src/platform/jobs/outbox-relay.js';
-import { JobRegistry } from '../../src/platform/jobs/job.registry.js';
-import { DrizzleTransactionalOutbox } from '../../src/platform/jobs/transactional-outbox.js';
+import { TransactionalOutbox } from '../../src/platform/jobs/transactional-outbox.js';
 import type { AppConfigService } from '../../src/config/app-config.service.js';
-import type { JobDispatcher } from '../../src/platform/jobs/job.types.js';
 import { purgeDatabase } from '../../scripts/database/purge-database.js';
 import { createTestDatabase, type TestDatabase } from '../database/test-database.js';
 
 describe('transactional platform jobs', () => {
   let testDatabase: TestDatabase;
   let unitOfWork: DatabaseUnitOfWork;
-  let outbox: DrizzleTransactionalOutbox;
+  let outbox: TransactionalOutbox;
   const clock = new FakeClock(new Date('2026-08-03T12:00:00.000Z'));
-  const registry = new JobRegistry();
 
   beforeAll(async () => {
     testDatabase = await createTestDatabase();
     await testDatabase.migrateProduction();
     unitOfWork = new DatabaseUnitOfWork(testDatabase.database);
-    registry.register({
-      handler: { execute: () => Promise.resolve() },
-      name: 'fixture.echo',
-      schema: z.object({ value: z.string() }),
-    });
-    outbox = new DrizzleTransactionalOutbox(clock, registry);
+    outbox = new TransactionalOutbox(clock);
   });
 
   beforeEach(async () => purgeDatabase(testDatabase.pool, testDatabase.url));
@@ -78,7 +69,7 @@ describe('transactional platform jobs', () => {
       }),
     );
     let dispatchCount = 0;
-    const dispatcher: JobDispatcher = {
+    const dispatcher = {
       dispatch: () => {
         dispatchCount += 1;
         return Promise.resolve({ id: 'job-id' });

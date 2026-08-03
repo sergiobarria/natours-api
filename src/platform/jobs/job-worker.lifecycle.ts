@@ -1,16 +1,14 @@
 import { Inject, Injectable, Logger, OnApplicationShutdown, OnModuleInit } from '@nestjs/common';
 import { UnrecoverableError, Worker, type Job } from 'bullmq';
 import { AppConfigService } from '../../config/app-config.service.js';
-import {
-  DatabaseUnitOfWork,
-  getTransactionDatabase,
-} from '../../database/database-unit-of-work.js';
+import { DatabaseUnitOfWork } from '../../database/database-unit-of-work.js';
 import { jobEffects } from '../../database/schema/platform-jobs.js';
 import { sanitizeOperationalError } from '../../security/sensitive-data.js';
+import { AuthEmailJob, parseAuthEmailPayload } from '../../identity/auth-email.job.js';
+import { AUTH_EMAIL_JOB } from '../../identity/identity.constants.js';
 import { REDIS_BLOCKING_CLIENT_FACTORY } from '../redis/redis.constants.js';
 import type { RedisBlockingClientFactory } from '../redis/redis.types.js';
 import type { RedisClient } from '../redis/redis.types.js';
-import { JobRegistry } from './job.registry.js';
 
 interface QueuedJobData {
   idempotencyKey?: string;
@@ -25,8 +23,8 @@ export class JobWorkerLifecycle implements OnModuleInit, OnApplicationShutdown {
 
   constructor(
     private readonly config: AppConfigService,
-    private readonly registry: JobRegistry,
     private readonly unitOfWork: DatabaseUnitOfWork,
+    @Inject(AuthEmailJob) private readonly authEmail: Pick<AuthEmailJob, 'execute'>,
     @Inject(REDIS_BLOCKING_CLIENT_FACTORY)
     private readonly createBlockingClient: RedisBlockingClientFactory,
   ) {}
@@ -59,18 +57,14 @@ export class JobWorkerLifecycle implements OnModuleInit, OnApplicationShutdown {
   }
 
   private async process(job: Job<QueuedJobData>): Promise<void> {
-    let definition;
-    try {
-      definition = this.registry.get(job.name);
-    } catch (error) {
-      throw new UnrecoverableError(error instanceof Error ? error.message : String(error));
+    if (job.name !== AUTH_EMAIL_JOB) {
+      throw new UnrecoverableError(`Unknown job type: ${job.name}`);
     }
-
-    const payload = definition.schema.parse(job.data.payload);
+    const payload = parseAuthEmailPayload(job.data.payload);
     const idempotencyKey = job.data.idempotencyKey ?? String(job.id);
 
-    await this.unitOfWork.transaction(async context => {
-      const inserted = await getTransactionDatabase(context)
+    await this.unitOfWork.transaction(async transaction => {
+      const inserted = await transaction
         .insert(jobEffects)
         .values({ idempotencyKey, jobName: job.name })
         .onConflictDoNothing()
@@ -81,7 +75,7 @@ export class JobWorkerLifecycle implements OnModuleInit, OnApplicationShutdown {
         return;
       }
 
-      await definition.handler.execute(payload, context);
+      await this.authEmail.execute(payload);
     });
   }
 }
