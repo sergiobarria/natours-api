@@ -5,7 +5,7 @@ import { AppConfigService } from '../config/app-config.service.js';
 import { DATABASE, DATABASE_POOL } from './database.constants.js';
 import { DatabaseLifecycle } from './database.lifecycle.js';
 import type { Database } from './database.types.js';
-import { DatabaseUnitOfWork } from './database-unit-of-work.js';
+import { AfterCommitDispatcher, DatabaseUnitOfWork } from './database-unit-of-work.js';
 import * as schema from './schema/index.js';
 
 const poolProvider: Provider<Pool> = {
@@ -31,7 +31,13 @@ const databaseProvider: Provider<Database> = {
 
 @Global()
 @Module({
-  providers: [poolProvider, databaseProvider, DatabaseLifecycle, DatabaseUnitOfWork],
-  exports: [DATABASE, DATABASE_POOL, DatabaseUnitOfWork],
+  providers: [
+    poolProvider,
+    databaseProvider,
+    DatabaseLifecycle,
+    DatabaseUnitOfWork,
+    AfterCommitDispatcher,
+  ],
+  exports: [DATABASE, DATABASE_POOL, DatabaseUnitOfWork, AfterCommitDispatcher],
 })
 export class DatabaseModule {}

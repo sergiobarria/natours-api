@@ -13,12 +13,13 @@ cp .env.example .env
 ```
 
 Environment variables are parsed by Zod during bootstrap. Invalid ports, log levels, environments,
-database URLs, pool bounds, or missing production CORS origins stop startup with a useful error.
-Better Auth, Redis, Stripe, storage, email, workers, and schedulers remain future capabilities.
+database URLs, pool bounds, Redis settings, queue policies, or missing production CORS origins stop
+startup with a useful error. Better Auth, Stripe, storage, and live Resend delivery remain future
+capabilities.
 
 Create dedicated `natours_dev` and `natours_test` PostgreSQL databases when using DBngin. The
-optional Compose service runs PostgreSQL on port `5433` and provisions both databases without
-conflicting with DBngin's default port.
+optional Compose services run PostgreSQL on port `5433` and Redis on port `6380`; Redis uses AOF
+persistence for local durable-job testing.
 
 ## Running locally
 
@@ -26,9 +27,12 @@ conflicting with DBngin's default port.
 pnpm start:dev   # watch mode
 pnpm build       # compile to dist/
 pnpm start:prod  # run compiled output
+pnpm start:worker
+pnpm start:scheduler
 ```
 
-The API root is `/api/v1`; the version-neutral health probe is `/health`. Scalar API reference (`/docs`) and OpenAPI JSON (`/docs-json`) are disabled in production.
+The API root is `/api/v1`; version-neutral liveness is `/health` and dependency/process readiness is
+`/ready`. Scalar API reference (`/docs`) and OpenAPI JSON (`/docs-json`) are disabled in production.
 
 ## Quality workflow
 
@@ -40,8 +44,10 @@ pnpm lint:fix      # apply ESLint fixes explicitly
 pnpm typecheck
 pnpm test
 pnpm test:integration
+pnpm test:redis
 pnpm test:cov
 pnpm test:e2e
+pnpm test:processes
 pnpm openapi:check
 pnpm build
 ```
@@ -54,6 +60,10 @@ CI installs the frozen lockfile and runs the non-mutating checks, tests, and bui
 - End-to-end tests (`test/*.e2e-spec.ts`) boot Nest and use Supertest against the HTTP surface.
 - Persistence integration tests create isolated PostgreSQL databases per Jest worker from
   `TEST_DATABASE_URL`; the configured database role must be allowed to create databases.
+- Redis integration tests use a unique key prefix and queue per suite while exercising retries,
+  retained failures, replay, scheduler upsert, and the PostgreSQL job-effect ledger.
+- Process checks start the compiled API, worker, and scheduler, send `SIGTERM`, and require clean
+  shutdown.
 - Contract checks generate a normalized OpenAPI document and compare it with the committed
   `openapi/openapi.json` artifact.
 
@@ -76,7 +86,7 @@ Run `pnpm openapi:generate` after an intentional HTTP contract change and review
 artifact. CI runs `pnpm openapi:check`, which generates into a temporary directory and rejects
 drift without modifying the committed contract.
 
-Generate migrations with `pnpm db:generate -- --name=<name>`, review the SQL and snapshot, and
+Generate migrations with `pnpm db:generate --name=<name>`, review the SQL and snapshot, and
 commit both. Apply them with `pnpm db:migrate`; never rewrite a migration already used by a shared
 environment. `pnpm db:check` validates migration history. Direct schema pushes are not part of the
 project workflow.

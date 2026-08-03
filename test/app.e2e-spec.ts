@@ -15,11 +15,16 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { ApiExcludeController } from '@nestjs/swagger';
 import { Logger } from 'nestjs-pino';
 import request from 'supertest';
+import { Throttle } from '@nestjs/throttler';
 import { AppModule } from '../src/app.module.js';
 import { configureApplication } from '../src/bootstrap.js';
 import { AppConfigService } from '../src/config/app-config.service.js';
 import { DomainError } from '../src/http/errors/domain.error.js';
 import { NativeResponse } from '../src/http/response/native-response.decorator.js';
+import { REDIS_CLIENT } from '../src/platform/redis/redis.constants.js';
+import type { RedisClient } from '../src/platform/redis/redis.types.js';
+import { RateLimitPolicy } from '../src/rate-limit/rate-limit.decorators.js';
+import { RATE_LIMIT_POLICY } from '../src/rate-limit/rate-limit.constants.js';
 import {
   presentCollection,
   presentPaginated,
@@ -49,6 +54,13 @@ class ContractQuery {
 @ApiExcludeController()
 @Controller('contract-tests')
 class ContractTestController {
+  @Get('rate-limit')
+  @RateLimitPolicy(RATE_LIMIT_POLICY.authentication)
+  @Throttle({ authentication: { limit: 2, ttl: 60_000 } })
+  rateLimit() {
+    return { limited: true };
+  }
+
   @Get('collection')
   collection() {
     return presentCollection([{ id: 'first' }, { id: 'second' }]);
@@ -180,6 +192,51 @@ describe('application foundation (e2e)', () => {
 
     expect(response.body).toEqual({ status: 'ok', info: {}, error: {}, details: {} });
     await request(httpServer).get('/api/v1/health').expect(404);
+  });
+
+  it('keeps liveness healthy while readiness reports missing process heartbeats', async () => {
+    await request(httpServer).get('/health').expect(200);
+    const readiness = await request(httpServer).get('/ready').expect(503);
+    const readinessBody = readiness.body as {
+      status: string;
+      error: Record<string, unknown>;
+    };
+    expect(readinessBody.status).toBe('error');
+    expect(Object.keys(readinessBody.error)).toEqual(
+      expect.arrayContaining(['scheduler', 'worker']),
+    );
+    await request(httpServer).get('/api/v1/ready').expect(404);
+  });
+
+  it('reports readiness when dependencies and both process roles are healthy', async () => {
+    const redis = app.get<RedisClient>(REDIS_CLIENT);
+    const prefix = app.get(AppConfigService).redisKeyPrefix;
+    const keys = [`${prefix}:heartbeat:worker:e2e`, `${prefix}:heartbeat:scheduler:e2e`];
+    await Promise.all(keys.map(key => redis.set(key, 'fresh', 'EX', 5)));
+    try {
+      const readiness = await request(httpServer).get('/ready').expect(200);
+      const body = readiness.body as { status: string };
+      expect(body.status).toBe('ok');
+    } finally {
+      await redis.del(...keys);
+    }
+  });
+
+  it('returns the standard error envelope when a named distributed policy is exceeded', async () => {
+    const redis = app.get<RedisClient>(REDIS_CLIENT);
+    const prefix = app.get(AppConfigService).redisKeyPrefix;
+    const keys = await redis.keys(`${prefix}:rate:authentication:*`);
+    if (keys.length > 0) await redis.del(...keys);
+    await request(httpServer).get('/api/v1/contract-tests/rate-limit').expect(200);
+    await request(httpServer).get('/api/v1/contract-tests/rate-limit').expect(200);
+    const limited = await request(httpServer)
+      .get('/api/v1/contract-tests/rate-limit')
+      .set('x-request-id', 'rate-limit-request')
+      .expect(429);
+    expect(readErrorResponse(limited).error).toMatchObject({
+      code: 'TOO_MANY_REQUESTS',
+      requestId: 'rate-limit-request',
+    });
   });
 
   it('returns 404 for an unknown route', async () => {

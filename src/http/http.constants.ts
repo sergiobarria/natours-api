@@ -14,6 +14,7 @@ export const HTTP_ROUTES = {
   docs: 'docs',
   docsJson: 'docs-json',
   health: 'health',
+  ready: 'ready',
 } as const;
 
 export const API_CONTRACT = {

@@ -1,8 +1,8 @@
 # Operations Guide
 
-The current production artifact is the NestJS HTTP API with PostgreSQL persistence through a
-bounded Drizzle/node-postgres pool. Configuration is validated at startup and credentials remain
-outside version control. Redis, workers, and schedulers described below remain target capabilities.
+The production build contains independently runnable API, worker, and scheduler entry points with
+PostgreSQL persistence and Redis-backed BullMQ jobs. Configuration is validated at startup and
+credentials remain outside version control.
 
 ## Environment baseline
 
@@ -19,14 +19,52 @@ DATABASE_POOL_MAX=10
 DATABASE_POOL_IDLE_TIMEOUT_MS=30000
 DATABASE_POOL_CONNECTION_TIMEOUT_MS=5000
 REDIS_URL=redis://...
+REDIS_KEY_PREFIX=natours-production
+REDIS_CONNECT_TIMEOUT_MS=5000
+REDIS_COMMAND_TIMEOUT_MS=5000
+REDIS_MAX_RETRIES_PER_REQUEST=1
+JOBS_QUEUE_NAME=natours-jobs
+JOBS_ATTEMPTS=3
+JOBS_BACKOFF_DELAY_MS=1000
+JOBS_BACKOFF_JITTER=0.25
+JOBS_WORKER_CONCURRENCY=4
+JOBS_LOCK_DURATION_MS=30000
+JOBS_MAX_STALLED_COUNT=1
+JOBS_REMOVE_ON_COMPLETE_AGE_SECONDS=86400
+JOBS_REMOVE_ON_COMPLETE_COUNT=1000
+JOBS_REMOVE_ON_FAIL_AGE_SECONDS=604800
+JOBS_REMOVE_ON_FAIL_COUNT=5000
+OUTBOX_POLL_INTERVAL_MS=1000
+OUTBOX_BATCH_SIZE=100
+PROCESS_SHUTDOWN_TIMEOUT_MS=10000
+TRUSTED_PROXY_CIDRS=10.0.0.0/8
+RATE_LIMIT_GLOBAL_LIMIT=100
+RATE_LIMIT_GLOBAL_TTL_MS=60000
+RATE_LIMIT_GLOBAL_BLOCK_MS=60000
+RATE_LIMIT_AUTH_LIMIT=10
+RATE_LIMIT_AUTH_TTL_MS=60000
+RATE_LIMIT_AUTH_BLOCK_MS=300000
+RATE_LIMIT_ACCOUNT_LIMIT=30
+RATE_LIMIT_ACCOUNT_TTL_MS=60000
+RATE_LIMIT_ACCOUNT_BLOCK_MS=60000
+RATE_LIMIT_WEBHOOK_LIMIT=120
+RATE_LIMIT_WEBHOOK_TTL_MS=60000
+RATE_LIMIT_WEBHOOK_BLOCK_MS=60000
+READINESS_TIMEOUT_MS=2000
+WORKER_HEARTBEAT_INTERVAL_MS=5000
+SCHEDULER_HEARTBEAT_INTERVAL_MS=5000
+PROCESS_HEARTBEAT_TTL_SECONDS=15
+HEALTH_SNAPSHOT_SCHEDULE=*/5 * * * *
+OPERATIONS_PRUNE_SCHEDULE=0 3 * * *
+HEALTH_HISTORY_RETENTION_DAYS=30
 BETTER_AUTH_URL=https://api.example.com
 BETTER_AUTH_SECRET=
 ```
 
-`DATABASE_URL` and the bounded pool settings are implemented alongside the HTTP configuration.
-Production startup requires an explicit comma-separated CORS allowlist. Add and validate the
-remaining variables alongside their integrations. Better Auth secrets require at least 32
-high-entropy characters and deliberate rotation procedures.
+Every Redis namespace, queue name, retry policy, concurrency value, retention bound, polling
+interval, and timeout is deployment configuration. Never derive namespaces from `NODE_ENV` or
+share a Redis prefix between environments. Production startup requires an explicit comma-separated
+CORS allowlist.
 
 ## Deployment process
 
@@ -40,9 +78,11 @@ high-entropy characters and deliberate rotation procedures.
 
 Prefer backward-compatible expand/migrate/contract database changes when multiple application versions may overlap. Never run development fixture seeds in production.
 
-## Future processes and scheduled work
+## Processes and scheduled work
 
-At least one worker consumes durable jobs. Exactly one logical scheduler execution should enqueue each occurrence; use a distributed lock or a platform scheduler with concurrency control.
+Deploy `node dist/main.js`, `node dist/worker.js`, and `node dist/scheduler.js` from the same
+artifact. At least one worker consumes durable jobs. BullMQ job schedulers are upserted by stable
+IDs, so multiple scheduler instances do not duplicate the definition or occurrence.
 
 | Frequency        | Work                                                                       |
 | ---------------- | -------------------------------------------------------------------------- |
@@ -51,16 +91,48 @@ At least one worker consumes durable jobs. Exactly one logical scheduler executi
 | Every 15 minutes | Remove expired Better Auth verification records                            |
 | Daily            | Prune expired sessions, audit/health history according to retention policy |
 
-Jobs are idempotent, use bounded retries and backoff, emit structured failures, and expose dead-letter inspection and replay procedures.
+Jobs use stable IDs, bounded exponential retries, retained failures, and a PostgreSQL effect ledger.
+Use `pnpm jobs:list-failed`, `pnpm jobs:inspect --id=<id>`, and
+`pnpm jobs:replay --id=<id> --state=failed`. These commands omit payloads and redact failure text.
+Investigate the cause before replay; a replay retains the original domain idempotency key.
+
+Bull Board is intentionally deferred until identity and administrative authorization are available.
+If introduced, it must be disabled by default, require an explicit administrator permission, and be
+restricted at the network edge. Never expose an unauthenticated queue dashboard.
+
+The worker relays committed `outbox_messages` with `FOR UPDATE SKIP LOCKED`. If Redis is unavailable,
+the row remains undispatched with bounded error metadata and is retried on the next poll. Never
+manually mark a row dispatched. Repair Redis or the invalid job definition, then let the relay
+recover it. Process-local after-commit callbacks are best-effort and must not be used for work that
+must survive a crash.
 
 ## Health and shutdown
 
 - `GET /health` is a version-neutral Terminus liveness probe and performs no external calls.
 - Healthy liveness returns `200` using the standard Terminus response.
-- Add dependency indicators and, if needed, a distinct readiness route when PostgreSQL or Redis is implemented.
+- `GET /ready` checks bounded PostgreSQL and Redis probes plus fresh, instance-specific worker and
+  scheduler heartbeats. One live instance per role satisfies readiness. Dependency outages never
+  make liveness fail.
 
-Graceful shutdown hooks close the PostgreSQL pool. Future readiness checks should be bounded and
-should not make the liveness route dependent on external systems.
+Graceful shutdown hooks stop queue intake and polling, wait up to the configured shutdown bound,
+then close BullMQ, Redis, and PostgreSQL connections. Keep the process termination grace period
+longer than `PROCESS_SHUTDOWN_TIMEOUT_MS`. Liveness never gains an external dependency.
+
+Configure `TRUSTED_PROXY_CIDRS` only with known proxy networks. Guest rate-limit identity uses
+Express's resolved IP and never reads forwarded headers directly. Redis-backed policies are atomic
+and fail guarded traffic closed with `503` if Redis is unavailable.
+
+Audit events are inserted through `AuditRecorder` in the same transaction as required mutations.
+PostgreSQL rejects update, delete, and truncate operations on `audit_events`; purge/reset preserves
+the table. Action allowlists and recursive redaction exclude credentials, secrets, tokens,
+verification/recovery values, and unnecessary personal data. Audit history is never automatically
+pruned and must follow the required legal and business retention policy.
+
+Dependency history stores only component, status, timestamp, and latency.
+`HEALTH_HISTORY_RETENTION_DAYS` controls its idempotent pruning job. Alert on failed readiness,
+stale heartbeats, outbox growth, retained failed jobs, and rate-limit storage failures. PostgreSQL
+backups must support tested point-in-time recovery. Configure Redis durability for the deployment;
+the PostgreSQL outbox remains the source of truth for crash-durable dispatch.
 
 Domain responses use the documented success/error envelopes. Unexpected exceptions are logged
 with internal context while clients receive only a safe `INTERNAL_SERVER_ERROR` response and the
@@ -79,6 +151,10 @@ MAIL_FROM_NAME=Natours
 ```
 
 Use a verified sending domain. `FRONTEND_URL` receives password and verification handoffs; `APP_URL` and `BETTER_AUTH_URL` identify the API origin while Better Auth uses `/api/v1/auth` as its configured base path. Queue messages with no plaintext passwords, session tokens, or unnecessary personal data. Monitor provider errors and queue failures without changing generic account-enumeration-safe responses.
+
+Resend is the selected provider. Stage 1 exposes only the `EmailSender` boundary and deterministic
+test fake; add the live Resend adapter when identity delivery begins, with `RESEND_API_KEY` kept in
+the deployment secret store and the job idempotency key propagated to the provider boundary.
 
 ## Stripe
 
@@ -124,7 +200,12 @@ Apply no-store headers to sessions and sensitive account or booking data. Redact
 
 ## Backup and recovery
 
-Automate PostgreSQL backups and regularly test point-in-time recovery. Define retention for audits, sessions, verification records, health history, and job records. Object-storage versioning or lifecycle policy should match business recovery requirements. Document recovery for database loss, Redis loss, missed scheduled jobs, delayed webhooks, and partially completed media operations.
+Automate PostgreSQL backups and regularly test point-in-time recovery; the outbox and job-effect
+ledger are part of that recovery set. Enable Redis persistence appropriate to the deployment and
+understand that PostgreSQL remains the source of truth for undispatched durable work. Losing Redis
+may lose queued-but-not-yet-processed copies, so reconcile undispatched/outstanding work through
+the outbox and domain recovery jobs after restoration. Retain completed/failed BullMQ records only
+within the configured age/count bounds.
 
 ## Security checklist
 

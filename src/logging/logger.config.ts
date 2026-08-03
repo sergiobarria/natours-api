@@ -4,13 +4,18 @@ import { Params } from 'nestjs-pino';
 import { AppConfigService } from '../config/app-config.service.js';
 import { ENVIRONMENT_VARIABLES } from '../config/config.constants.js';
 import { HTTP_HEADERS, HTTP_ROUTES, REQUEST_ID_CONTRACT } from '../http/http.constants.js';
+import { PROCESS_ROLE, type ProcessRole } from '../platform/jobs/job.constants.js';
 
 const requestIdPattern = new RegExp(REQUEST_ID_CONTRACT.pattern);
 
-export function createLoggerOptions(config: AppConfigService): Params {
+export function createLoggerOptions(
+  config: AppConfigService,
+  processRole: ProcessRole = PROCESS_ROLE.api,
+): Params {
   return {
     forRoutes: [{ path: HTTP_ROUTES.catchAll, method: RequestMethod.ALL }],
     pinoHttp: {
+      base: { processRole },
       level: config.logLevel,
       transport: config.isDevelopment
         ? {

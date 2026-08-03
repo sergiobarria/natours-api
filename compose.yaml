@@ -16,5 +16,19 @@ services:
       - natours_postgres_data:/var/lib/postgresql
       - ./docker/postgres/init:/docker-entrypoint-initdb.d:ro
 
+  redis:
+    image: redis:8.8.1-alpine
+    command: ['redis-server', '--appendonly', 'yes']
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    ports:
+      - '6380:6379'
+    volumes:
+      - natours_redis_data:/data
+
 volumes:
   natours_postgres_data:
+  natours_redis_data:
