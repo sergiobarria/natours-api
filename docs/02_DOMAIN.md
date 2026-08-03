@@ -31,6 +31,10 @@ is deleted so they do not permanently block user-role changes. Restoration is no
 
 A departure has a UUID v4, tour reference, UTC start instant, available spots, reserved spots, active flag, timestamps, and soft-delete timestamp.
 
+Creation and rescheduling require a strictly future instant, including inactive departures. A
+departure with reserved inventory cannot be moved, deactivated, or deleted. Public resources omit
+reserved inventory and expose only active, future, non-deleted departures.
+
 The tour and normalized UTC instant pair is unique, including soft-deleted records. Available plus reserved spots may never exceed tour capacity. Capacity cannot be reduced below inventory represented by existing departures. `reserved_spots` is internal and changes only through booking workflows.
 
 ## Images
@@ -38,6 +42,10 @@ The tour and normalized UTC instant pair is unique, including soft-deleted recor
 A tour has zero through ten ordered images in S3-compatible storage. The first is the cover. Accepted originals are JPEG, PNG, and WebP up to 10 MB. Upload creates WebP `card` (1200×800 centered crop) and `thumbnail` (480×320 centered crop) conversions.
 
 Deleting an image removes originals and conversions and closes the ordering gap. Storage failure must not silently delete only database metadata. Client-controlled reordering is deferred.
+
+Media metadata uses recoverable `pending_upload`, `active`, and `pending_delete` states. Only active
+rows are public. Pending deletion immediately removes the public position; metadata remains until
+all objects have been confirmed deleted so a failed storage operation can be retried safely.
 
 ## Bookings and travelers
 

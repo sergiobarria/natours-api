@@ -7,7 +7,9 @@ import {
   integer,
   numeric,
   pgTable,
+  smallint,
   text,
+  timestamp,
   uniqueIndex,
   uuid,
 } from 'drizzle-orm/pg-core';
@@ -19,6 +21,8 @@ export const TOUR_DIFFICULTIES = ['easy', 'moderate', 'difficult'] as const;
 export type TourDifficulty = (typeof TOUR_DIFFICULTIES)[number];
 export const GUIDE_ASSIGNMENT_ROLES = ['lead-guide', 'guide'] as const;
 export type GuideAssignmentRole = (typeof GUIDE_ASSIGNMENT_ROLES)[number];
+export const TOUR_MEDIA_STATES = ['pending_upload', 'active', 'pending_delete'] as const;
+export type TourMediaState = (typeof TOUR_MEDIA_STATES)[number];
 
 export const tours = pgTable(
   'tours',
@@ -122,6 +126,86 @@ export const tourGuideAssignments = pgTable(
     check(
       databaseObjectName('tour_guide_assignments', 'assignment_role', 'check'),
       sql`${table.assignmentRole} IN ('lead-guide', 'guide')`,
+    ),
+  ],
+);
+
+export const tourDepartures = pgTable(
+  'tour_departures',
+  {
+    id: uuidPrimaryKey(),
+    tourId: uuid('tour_id')
+      .notNull()
+      .references(() => tours.id, { onDelete: 'restrict' }),
+    startAt: timestamp('start_at', { withTimezone: true, mode: 'date', precision: 3 }).notNull(),
+    availableSpots: integer('available_spots').notNull(),
+    reservedSpots: integer('reserved_spots').notNull().default(0),
+    isActive: boolean('is_active').notNull().default(true),
+    ...timestampColumns(),
+    deletedAt: softDeletionColumn(),
+  },
+  table => [
+    uniqueIndex(databaseObjectName('tour_departures', ['tour_id', 'start_at'], 'unique')).on(
+      table.tourId,
+      table.startAt,
+    ),
+    index(databaseObjectName('tour_departures', ['tour_id', 'start_at', 'id'], 'idx')).on(
+      table.tourId,
+      table.startAt,
+      table.id,
+    ),
+    check(
+      databaseObjectName('tour_departures', 'available_spots', 'check'),
+      sql`${table.availableSpots} >= 0`,
+    ),
+    check(
+      databaseObjectName('tour_departures', 'reserved_spots', 'check'),
+      sql`${table.reservedSpots} >= 0`,
+    ),
+  ],
+);
+
+export const tourMedia = pgTable(
+  'tour_media',
+  {
+    id: uuidPrimaryKey(),
+    tourId: uuid('tour_id')
+      .notNull()
+      .references(() => tours.id, { onDelete: 'restrict' }),
+    position: smallint('position'),
+    state: text('state').$type<TourMediaState>().notNull(),
+    keyPrefix: text('key_prefix').notNull(),
+    originalFormat: text('original_format').notNull(),
+    originalSize: integer('original_size').notNull(),
+    width: integer('width').notNull(),
+    height: integer('height').notNull(),
+    ...timestampColumns(),
+  },
+  table => [
+    uniqueIndex(databaseObjectName('tour_media', ['tour_id', 'position'], 'unique'))
+      .on(table.tourId, table.position)
+      .where(sql`${table.position} IS NOT NULL`),
+    uniqueIndex(databaseObjectName('tour_media', 'key_prefix', 'unique')).on(table.keyPrefix),
+    index(databaseObjectName('tour_media', ['tour_id', 'state', 'position'], 'idx')).on(
+      table.tourId,
+      table.state,
+      table.position,
+    ),
+    check(
+      databaseObjectName('tour_media', 'position', 'check'),
+      sql`${table.position} IS NULL OR ${table.position} BETWEEN 1 AND 10`,
+    ),
+    check(
+      databaseObjectName('tour_media', 'state', 'check'),
+      sql`${table.state} IN ('pending_upload', 'active', 'pending_delete')`,
+    ),
+    check(
+      databaseObjectName('tour_media', 'original_size', 'check'),
+      sql`${table.originalSize} BETWEEN 1 AND 10485760`,
+    ),
+    check(
+      databaseObjectName('tour_media', 'dimensions', 'check'),
+      sql`${table.width} > 0 AND ${table.height} > 0`,
     ),
   ],
 );

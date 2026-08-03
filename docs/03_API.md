@@ -118,6 +118,16 @@ are added by F-05 when that resource exists.
 | Stripe webhook | `/stripe/webhook`             | Signed event ingestion with a dedicated limit                         |
 | Analytics      | `/tour-analytics/*`           | Protected rankings, statistics, and monthly plan                      |
 
+Departure operations use `GET|POST /tours/{tourId}/start-dates` and
+`PATCH|DELETE /tours/{tourId}/start-dates/{departureId}`. The public collection is chronological
+and omits reserved inventory. Writes accept `startAt`, `availableSpots`, and `isActive`; reserved
+spots are booking-owned and are never accepted from clients.
+
+Gallery upload uses `POST /tours/{tourId}/images` with one through ten binary `images` parts, each
+limited to 10 MB. Deletion uses `DELETE /tours/{tourId}/images/{imageId}`. Public tour detail adds
+ordered `images` with original, card, and thumbnail URLs and `startDates` with upcoming departures;
+catalog list resources remain compact.
+
 ## Stateful workflows
 
 Better Auth invokes the queued email adapter for verification and recovery delivery. Account-recovery responses remain generic, and session revocation follows the domain contract. Natours profile and administrative endpoints remain regular Nest controllers.

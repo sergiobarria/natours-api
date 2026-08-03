@@ -31,14 +31,22 @@ export const ENVIRONMENT_VARIABLES = {
   resendApiKey: 'RESEND_API_KEY',
   mailFromAddress: 'MAIL_FROM_ADDRESS',
   mailFromName: 'MAIL_FROM_NAME',
+  objectStorageProvider: 'OBJECT_STORAGE_PROVIDER',
+  r2AccessKeyId: 'R2_ACCESS_KEY_ID',
+  r2SecretAccessKey: 'R2_SECRET_ACCESS_KEY',
+  r2Bucket: 'R2_BUCKET',
+  r2Endpoint: 'R2_ENDPOINT',
+  r2PublicUrl: 'R2_PUBLIC_URL',
+  r2Region: 'R2_REGION',
 } as const;
 
-export const APP_ENVIRONMENTS = ['development', 'test', 'production'] as const;
+export const APP_ENVIRONMENTS = ['development', 'test', 'staging', 'production'] as const;
 
 export const APP_ENVIRONMENT = {
   development: APP_ENVIRONMENTS[0],
   test: APP_ENVIRONMENTS[1],
-  production: APP_ENVIRONMENTS[2],
+  staging: APP_ENVIRONMENTS[2],
+  production: APP_ENVIRONMENTS[3],
 } as const;
 
 export const DATABASE_DEFAULTS = {

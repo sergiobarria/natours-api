@@ -12,6 +12,7 @@ import { RateLimitModule } from './rate-limit/rate-limit.module.js';
 import { IdentityModule } from './identity/identity.module.js';
 import { UsersModule } from './users/users.module.js';
 import { ToursModule } from './tours/tours.module.js';
+import { StorageModule } from './storage/storage.module.js';
 
 @Module({
   imports: [
@@ -22,6 +23,7 @@ import { ToursModule } from './tours/tours.module.js';
     RateLimitModule,
     IdentityModule,
     UsersModule,
+    StorageModule,
     ToursModule,
     LoggerModule.forRootAsync({
       imports: [AppConfigModule],

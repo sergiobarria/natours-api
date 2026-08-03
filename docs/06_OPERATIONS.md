@@ -189,6 +189,7 @@ Investigate Stripe and queue state before manual recovery. Seat restoration rema
 ## Object storage
 
 ```dotenv
+OBJECT_STORAGE_PROVIDER=r2
 R2_ACCESS_KEY_ID=
 R2_SECRET_ACCESS_KEY=
 R2_BUCKET=
@@ -197,9 +198,16 @@ R2_PUBLIC_URL=https://media.example.com
 R2_REGION=auto
 ```
 
-Use least-privilege bucket credentials and explicit CORS/public-delivery policy. Separate buckets or prefixes by environment. Monitor failed uploads, conversions, deletes, and cleanup jobs.
+Use least-privilege Cloudflare R2 credentials and explicit CORS/public-delivery policy. Separate
+buckets or prefixes by environment. The application exposes R2 through a generic object-storage
+boundary so future features can reuse the provider without inheriting tour-media behavior. Monitor
+failed uploads, conversions, deletes, and cleanup jobs.
 
 A cleanup utility must default to dry run, target an explicitly configured development/test bucket, verify deletion before removing metadata, and refuse staging/production regardless of force flags.
+
+Run `pnpm media:cleanup` to inspect recoverable pending media. `pnpm media:cleanup --execute` is
+available only when `NODE_ENV` is `development` or `test` and the explicit S3-compatible storage
+configuration is present.
 
 ## Rate limiting and sensitive data
 

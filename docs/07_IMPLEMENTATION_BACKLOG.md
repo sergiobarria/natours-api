@@ -190,14 +190,14 @@ Ensures customers see trustworthy schedules and galleries while preserving capac
 
 ### Scope and subtasks
 
-- [ ] Add departure schema/lifecycle with UUID keys, UTC start, available/reserved spots, active state, soft deletion, and unique tour/instant constraint including deleted rows.
-- [ ] Implement public chronological departure reads and permission-protected create/update/soft-delete workflows.
-- [ ] Enforce future/active and capacity invariants, prevent direct reserved-spot mutation, and protect inventory represented by departures.
-- [ ] Add media metadata and ordered-position constraints for at most ten images per tour.
-- [ ] Implement an S3-compatible `MediaStorage` adapter with deterministic environment-separated keys and test fakes.
-- [ ] Validate actual JPEG/PNG/WebP content and 10 MB limits; generate WebP card (1200×800) and thumbnail (480×320) variants.
-- [ ] Implement compensated multi-file upload and deletion that removes storage objects safely, deletes metadata, and closes ordering gaps.
-- [ ] Add permission checks, audits, public media resources, operational failure logs, and dry-run cleanup safeguards.
+- [x] Add departure schema/lifecycle with UUID keys, UTC start, available/reserved spots, active state, soft deletion, and unique tour/instant constraint including deleted rows.
+- [x] Implement public chronological departure reads and permission-protected create/update/soft-delete workflows.
+- [x] Enforce future/active and capacity invariants, prevent direct reserved-spot mutation, and protect inventory represented by departures.
+- [x] Add media metadata and ordered-position constraints for at most ten images per tour.
+- [x] Reuse the shared Cloudflare R2-compatible `ObjectStorage` boundary with deterministic environment-separated media keys and a test fake.
+- [x] Validate actual JPEG/PNG/WebP content and 10 MB limits; generate WebP card (1200×800) and thumbnail (480×320) variants.
+- [x] Implement compensated multi-file upload and deletion that removes storage objects safely, deletes metadata, and closes ordering gaps.
+- [x] Add permission checks, audits, public media resources, operational failure logs, and dry-run cleanup safeguards.
 
 ### Acceptance criteria
 

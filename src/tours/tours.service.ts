@@ -11,7 +11,9 @@ import {
   inArray,
   isNull,
   lte,
+  max,
   or,
+  sql,
   type SQL,
 } from 'drizzle-orm';
 import { randomUUID } from 'node:crypto';
@@ -20,7 +22,7 @@ import { DatabaseUnitOfWork } from '../database/database-unit-of-work.js';
 import { DATABASE } from '../database/database.constants.js';
 import type { Database, DatabaseTransaction } from '../database/database.types.js';
 import { users } from '../database/schema/identity.js';
-import { tourGuideAssignments, tours } from '../database/schema/tours.js';
+import { tourDepartures, tourGuideAssignments, tours } from '../database/schema/tours.js';
 import { TourPolicyError } from './tour.errors.js';
 import type {
   CreateTourDto,
@@ -28,6 +30,8 @@ import type {
   ReplaceGuideTeamDto,
   UpdateTourDto,
 } from './tours.dto.js';
+import { DeparturesService } from './departures.service.js';
+import { MediaService } from './media.service.js';
 
 type GuideTeamInput = Pick<ReplaceGuideTeamDto, 'leadGuideId' | 'guideIds'>;
 type TourWriteInput = Omit<CreateTourDto, 'leadGuideId' | 'guideIds'>;
@@ -85,6 +89,8 @@ export class ToursService {
     @Inject(DATABASE) private readonly database: Database,
     @Inject(DatabaseUnitOfWork) private readonly unitOfWork: DatabaseUnitOfWork,
     private readonly audit: DrizzleAuditRecorder,
+    private readonly departures: DeparturesService,
+    private readonly media: MediaService,
   ) {}
 
   async create(actorId: string, input: TourWriteInput, team: GuideTeamInput, requestId?: string) {
@@ -113,6 +119,23 @@ export class ToursService {
   update(actorId: string, tourId: string, input: UpdateTourDto, requestId?: string) {
     return this.unitOfWork.transaction(async transaction => {
       const existing = await this.lockTour(transaction, tourId);
+      if (input.maximumGroupSize !== undefined) {
+        const [inventory] = await transaction
+          .select({
+            maximum: max(
+              sql<number>`${tourDepartures.availableSpots} + ${tourDepartures.reservedSpots}`,
+            ),
+          })
+          .from(tourDepartures)
+          .where(and(eq(tourDepartures.tourId, tourId), isNull(tourDepartures.deletedAt)));
+        const represented = Number(inventory?.maximum ?? 0);
+        if (input.maximumGroupSize < represented) {
+          throw new TourPolicyError(
+            'TOUR_CAPACITY_BELOW_DEPARTURE_INVENTORY',
+            'Tour capacity cannot be below departure inventory.',
+          );
+        }
+      }
       const [updated] = await transaction
         .update(tours)
         .set(this.patchValues(input))
@@ -147,9 +170,15 @@ export class ToursService {
     });
   }
 
-  delete(actorId: string, tourId: string, requestId?: string): Promise<void> {
+  async delete(actorId: string, tourId: string, requestId?: string): Promise<void> {
+    await this.unitOfWork.transaction(async transaction => {
+      await this.lockTour(transaction, tourId);
+      await this.requireNoReservedDepartures(transaction, tourId);
+    });
+    await this.media.deleteAllForTour(actorId, tourId, requestId);
     return this.unitOfWork.transaction(async transaction => {
       const existing = await this.lockTour(transaction, tourId);
+      await this.requireNoReservedDepartures(transaction, tourId);
       const deletedAt = new Date();
       await transaction
         .update(tours)
@@ -161,6 +190,10 @@ export class ToursService {
         .where(
           and(eq(tourGuideAssignments.tourId, tourId), isNull(tourGuideAssignments.deletedAt)),
         );
+      await transaction
+        .update(tourDepartures)
+        .set({ deletedAt, isActive: false, updatedAt: deletedAt })
+        .where(and(eq(tourDepartures.tourId, tourId), isNull(tourDepartures.deletedAt)));
       await this.audit.record(transaction, {
         action: 'tour.changed',
         actor: { type: 'user', userId: actorId },
@@ -191,7 +224,12 @@ export class ToursService {
       .where(and(eq(tours.slug, slug), eq(tours.isActive, true), isNull(tours.deletedAt)))
       .limit(1);
     if (!tour) throw new NotFoundException('Tour not found.');
-    return this.present(tour, await this.loadGuides(this.database, tour.id), false);
+    const [guides, startDates, images] = await Promise.all([
+      this.loadGuides(this.database, tour.id),
+      this.departures.publicList(tour.id),
+      this.media.publicList(tour.id),
+    ]);
+    return { ...this.present(tour, guides, false), startDates, images };
   }
 
   async publicList(query: ListToursQueryDto) {
@@ -287,6 +325,22 @@ export class ToursService {
       .for('update');
     if (!tour) throw new NotFoundException('Tour not found.');
     return tour;
+  }
+
+  private async requireNoReservedDepartures(
+    transaction: DatabaseTransaction,
+    tourId: string,
+  ): Promise<void> {
+    const [reserved] = await transaction
+      .select({ maximum: max(tourDepartures.reservedSpots) })
+      .from(tourDepartures)
+      .where(and(eq(tourDepartures.tourId, tourId), isNull(tourDepartures.deletedAt)));
+    if ((reserved?.maximum ?? 0) > 0) {
+      throw new TourPolicyError(
+        'TOUR_HAS_RESERVED_DEPARTURES',
+        'A tour with reserved departures cannot be deleted.',
+      );
+    }
   }
 
   private async replaceTeam(

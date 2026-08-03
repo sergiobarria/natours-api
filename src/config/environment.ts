@@ -84,6 +84,13 @@ const rawEnvironmentSchema = z
     [ENVIRONMENT_VARIABLES.resendApiKey]: z.string().default(''),
     [ENVIRONMENT_VARIABLES.mailFromAddress]: z.email(),
     [ENVIRONMENT_VARIABLES.mailFromName]: z.string().trim().min(1).max(100),
+    [ENVIRONMENT_VARIABLES.objectStorageProvider]: z.enum(['r2', 'fake']).default('fake'),
+    [ENVIRONMENT_VARIABLES.r2AccessKeyId]: z.string().default(''),
+    [ENVIRONMENT_VARIABLES.r2SecretAccessKey]: z.string().default(''),
+    [ENVIRONMENT_VARIABLES.r2Bucket]: z.string().default(''),
+    [ENVIRONMENT_VARIABLES.r2Endpoint]: z.string().default(''),
+    [ENVIRONMENT_VARIABLES.r2PublicUrl]: originSchema.default('http://localhost:3000/media'),
+    [ENVIRONMENT_VARIABLES.r2Region]: z.string().trim().min(1).default('auto'),
   })
   .superRefine((environment, context) => {
     if (environment.NODE_ENV === APP_ENVIRONMENT.production && !environment.CORS_ORIGINS?.trim()) {
@@ -108,6 +115,32 @@ const rawEnvironmentSchema = z
         code: 'custom',
         path: ['EMAIL_PROVIDER'],
         message: 'EMAIL_PROVIDER must be resend in production',
+      });
+    }
+    if (environment.OBJECT_STORAGE_PROVIDER === 'r2') {
+      for (const key of [
+        'R2_ACCESS_KEY_ID',
+        'R2_SECRET_ACCESS_KEY',
+        'R2_BUCKET',
+        'R2_ENDPOINT',
+      ] as const) {
+        if (!environment[key].trim()) {
+          context.addIssue({
+            code: 'custom',
+            path: [key],
+            message: `${key} is required for s3 storage`,
+          });
+        }
+      }
+    }
+    if (
+      environment.NODE_ENV === APP_ENVIRONMENT.production &&
+      environment.OBJECT_STORAGE_PROVIDER !== 'r2'
+    ) {
+      context.addIssue({
+        code: 'custom',
+        path: ['OBJECT_STORAGE_PROVIDER'],
+        message: 'OBJECT_STORAGE_PROVIDER must be r2 in production',
       });
     }
   });

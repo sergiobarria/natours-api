@@ -57,9 +57,17 @@ Cancellation uses pending and failed states because refund calls can fail. A sch
 
 ## Media
 
-`MediaStorage` abstracts S3-compatible object operations. Validate file count, size, and detected content type. Generate `card` and `thumbnail` WebP conversions with a Node-compatible image processor. Use deterministic object keys and compensate uploaded objects when a multi-file operation fails.
+The shared `ObjectStorage` boundary abstracts Cloudflare R2's S3-compatible object operations and
+has a test fake. Feature modules own their object conventions: tour media validates file count,
+size, and detected content type, generates `card` and `thumbnail` WebP conversions, uses
+deterministic keys, and compensates uploaded objects when a multi-file operation fails.
 
 Deletion removes storage objects before committing metadata deletion, or records explicit cleanup work when stronger cross-system recovery is needed. Never leave a database-only success that silently orphans objects.
+
+Synchronous uploads reserve hidden metadata before object writes and activate it only after every
+variant succeeds. Deletion changes metadata to a hidden pending state and closes the public ordering
+gap before object removal. Failures remain retryable through the same delete operation or the
+development/test cleanup command; no conversion worker or general media framework is introduced.
 
 ## Future queues, jobs, and scheduling
 
