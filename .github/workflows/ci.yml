@@ -49,8 +49,8 @@ jobs:
           pnpm db:generate
           git add --intent-to-add drizzle
           git diff --exit-code -- drizzle
-      - run: pnpm test -- --runInBand
+      - run: pnpm test --runInBand
       - run: pnpm test:integration
-      - run: pnpm test:e2e -- --runInBand
+      - run: pnpm test:e2e --runInBand
       - run: pnpm openapi:check
       - run: pnpm build
