@@ -10,7 +10,7 @@ const developmentOrigins = ['http://localhost:3000', 'http://localhost:5173'];
 const originSchema = z
   .url()
   .refine(origin => ['http:', 'https:'].includes(new URL(origin).protocol), {
-    message: 'CORS origins must use HTTP or HTTPS',
+    message: 'URL must use the http or https protocol',
   });
 
 const databaseUrlSchema = z
@@ -112,7 +112,7 @@ const rawEnvironmentSchema = z
     [ENVIRONMENT_VARIABLES.betterAuthMinPasswordLength]: positiveInteger,
     [ENVIRONMENT_VARIABLES.betterAuthMaxPasswordLength]: positiveInteger,
     [ENVIRONMENT_VARIABLES.emailProvider]: z.enum(['resend', 'fake']),
-    [ENVIRONMENT_VARIABLES.resendApiKey]: z.string(),
+    [ENVIRONMENT_VARIABLES.resendApiKey]: z.string().default(''),
     [ENVIRONMENT_VARIABLES.mailFromAddress]: z.email(),
     [ENVIRONMENT_VARIABLES.mailFromName]: z.string().trim().min(1).max(100),
   })
@@ -144,11 +144,21 @@ const rawEnvironmentSchema = z
         message: 'Maximum password length must exceed minimum password length',
       });
     }
-    if (environment.NODE_ENV === APP_ENVIRONMENT.production && !environment.RESEND_API_KEY) {
+    if (environment.EMAIL_PROVIDER === 'resend' && !environment.RESEND_API_KEY.trim()) {
       context.addIssue({
         code: 'custom',
         path: ['RESEND_API_KEY'],
-        message: 'RESEND_API_KEY is required in production',
+        message: 'RESEND_API_KEY is required when EMAIL_PROVIDER is resend',
+      });
+    }
+    if (
+      environment.NODE_ENV === APP_ENVIRONMENT.production &&
+      environment.EMAIL_PROVIDER !== 'resend'
+    ) {
+      context.addIssue({
+        code: 'custom',
+        path: ['EMAIL_PROVIDER'],
+        message: 'EMAIL_PROVIDER must be resend in production',
       });
     }
   });

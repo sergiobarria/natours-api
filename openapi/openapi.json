@@ -297,7 +297,7 @@
         "responses": {
           "200": { "description": "Users visible to an administrator." }
         },
-        "security": [{ "bearer": [] }],
+        "security": [{ "bearerAuth": [] }],
         "tags": ["users"]
       }
     },
@@ -313,7 +313,7 @@
           }
         ],
         "responses": { "204": { "description": "" } },
-        "security": [{ "bearer": [] }],
+        "security": [{ "bearerAuth": [] }],
         "tags": ["users"]
       },
       "get": {
@@ -327,7 +327,7 @@
           }
         ],
         "responses": { "200": { "description": "" } },
-        "security": [{ "bearer": [] }],
+        "security": [{ "bearerAuth": [] }],
         "tags": ["users"]
       }
     },
@@ -351,7 +351,7 @@
           "required": true
         },
         "responses": { "200": { "description": "" } },
-        "security": [{ "bearer": [] }],
+        "security": [{ "bearerAuth": [] }],
         "tags": ["users"]
       }
     },
@@ -368,14 +368,14 @@
           "required": true
         },
         "responses": { "204": { "description": "Account deleted." } },
-        "security": [{ "bearer": [] }],
+        "security": [{ "bearerAuth": [] }],
         "tags": ["users"]
       },
       "get": {
         "operationId": "UsersController_me_v1",
         "parameters": [],
         "responses": { "200": { "description": "" } },
-        "security": [{ "bearer": [] }],
+        "security": [{ "bearerAuth": [] }],
         "tags": ["users"]
       },
       "patch": {
@@ -390,7 +390,7 @@
           "required": true
         },
         "responses": { "200": { "description": "" } },
-        "security": [{ "bearer": [] }],
+        "security": [{ "bearerAuth": [] }],
         "tags": ["users"]
       }
     },
@@ -411,7 +411,7 @@
             "description": "Email verification queued when a change is required."
           }
         },
-        "security": [{ "bearer": [] }],
+        "security": [{ "bearerAuth": [] }],
         "tags": ["users"]
       }
     },
@@ -432,7 +432,7 @@
             "description": "Password changed; rotated token is in set-auth-token."
           }
         },
-        "security": [{ "bearer": [] }],
+        "security": [{ "bearerAuth": [] }],
         "tags": ["users"]
       }
     }

@@ -14,7 +14,9 @@ cp .env.example .env
 
 Environment variables are parsed by Zod during bootstrap. Invalid ports, log levels, environments,
 database URLs, pool bounds, Redis settings, queue policies, or missing production CORS origins stop
-startup with a useful error. Better Auth, Stripe, storage, and live Resend delivery remain future
+startup with a useful error. Better Auth and queued Resend delivery are current capabilities;
+configure `EMAIL_PROVIDER=resend` with a valid `RESEND_API_KEY` in production, while local and CI
+use the fake provider and non-production Better Auth secrets. Stripe and storage remain future
 capabilities.
 
 Create dedicated `natours_dev` and `natours_test` PostgreSQL databases when using DBngin. The

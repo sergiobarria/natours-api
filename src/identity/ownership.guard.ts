@@ -23,7 +23,8 @@ export class OwnershipGuard implements CanActivate {
       .switchToHttp()
       .getRequest<AuthenticatedRequest & { params?: Record<string, string> }>();
     if (!request.principal) throw new UnauthorizedException();
-    if (request.params?.[parameter] !== request.principal.userId) throw new ForbiddenException();
+    const targetId = request.params?.[parameter]?.toLowerCase();
+    if (targetId !== request.principal.userId.toLowerCase()) throw new ForbiddenException();
     return true;
   }
 }

@@ -30,7 +30,7 @@ import { DATABASE } from '../src/database/database.constants.js';
 import type { Database } from '../src/database/database.types.js';
 import { outboxMessages } from '../src/database/schema/platform-jobs.js';
 import { users } from '../src/database/schema/identity.js';
-import { desc, eq } from 'drizzle-orm';
+import { and, desc, eq, sql } from 'drizzle-orm';
 import {
   presentCollection,
   presentPaginated,
@@ -196,12 +196,23 @@ describe('application foundation (e2e)', () => {
     const [verificationMessage] = await database
       .select()
       .from(outboxMessages)
-      .where(eq(outboxMessages.jobName, 'auth.email.deliver'))
+      .where(
+        and(
+          eq(outboxMessages.jobName, 'auth.email.deliver'),
+          sql`${outboxMessages.payload}->>'recipient' = ${email}`,
+        ),
+      )
       .orderBy(desc(outboxMessages.createdAt))
       .limit(1);
-    const verificationPayload = verificationMessage?.payload as { url?: string };
-    expect(verificationPayload.url).toBeDefined();
-    const verificationUrl = new URL(verificationPayload.url!);
+    expect(verificationMessage).toBeDefined();
+    const verificationPayload = verificationMessage?.payload as
+      { recipient?: string; url?: string } | undefined;
+    expect(verificationPayload?.recipient).toBe(email);
+    expect(verificationPayload?.url).toEqual(expect.any(String));
+    if (!verificationPayload?.url) {
+      throw new Error('Expected a verification URL in the durable email payload');
+    }
+    const verificationUrl = new URL(verificationPayload.url);
     await request(httpServer)
       .get(`${verificationUrl.pathname}${verificationUrl.search}`)
       .expect(302);

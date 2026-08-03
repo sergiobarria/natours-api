@@ -132,7 +132,7 @@ Enables travelers and operators to safely access protected capabilities without 
 
 - Registration, verification, login, session-authenticated request, logout, recovery, reset, and account update flows work through the documented routes.
 - No password, recovery/verification value, session token, or Better Auth secret appears in logs, audits, or domain responses.
-- One user cannot bypass Natours permission, ownership, self-administration, assignment, or booking-history constraints through Better Auth routes.
+- One user cannot bypass Natours permission, ownership, or self-administration constraints through Better Auth routes; assignment and booking-history constraints apply when F-04 and F-06 introduce those records.
 - Auth schema changes are generated, reviewed, and applied only through Drizzle migrations.
 
 ### Exclusions

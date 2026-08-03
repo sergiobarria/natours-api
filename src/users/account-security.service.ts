@@ -29,10 +29,10 @@ export class AccountSecurityService {
         headers: fromNodeHeaders(headers),
       }),
     );
-    await this.record(userId, { changed: true, sessionsRevoked: 'others' }, requestId);
     if (!result.token) {
       throw new Error('Better Auth did not rotate the retained session token.');
     }
+    await this.record(userId, { changed: true, sessionsRevoked: 'others' }, requestId);
     return result.token;
   }
 

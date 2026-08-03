@@ -174,4 +174,35 @@ describe('validateEnvironment', () => {
       validateEnvironment({ ...databaseEnvironment, JOBS_QUEUE_NAME: 'invalid:name' }),
     ).toThrow('JOBS_QUEUE_NAME may contain letters, numbers, underscores, and hyphens');
   });
+
+  it('requires the maximum password length to exceed the minimum', () => {
+    expect(() =>
+      validateEnvironment({
+        ...databaseEnvironment,
+        BETTER_AUTH_MIN_PASSWORD_LENGTH: '128',
+        BETTER_AUTH_MAX_PASSWORD_LENGTH: '128',
+      }),
+    ).toThrow('Maximum password length must exceed minimum password length');
+  });
+
+  it('requires a Resend key whenever the Resend provider is selected', () => {
+    expect(() =>
+      validateEnvironment({
+        ...databaseEnvironment,
+        EMAIL_PROVIDER: 'resend',
+        RESEND_API_KEY: '',
+      }),
+    ).toThrow('RESEND_API_KEY is required when EMAIL_PROVIDER is resend');
+  });
+
+  it('requires the Resend provider in production', () => {
+    expect(() =>
+      validateEnvironment({
+        ...databaseEnvironment,
+        NODE_ENV: APP_ENVIRONMENT.production,
+        CORS_ORIGINS: 'https://example.com',
+        EMAIL_PROVIDER: 'fake',
+      }),
+    ).toThrow('EMAIL_PROVIDER must be resend in production');
+  });
 });

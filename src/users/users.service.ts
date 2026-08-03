@@ -80,6 +80,7 @@ export class UsersService {
         .set({ role })
         .where(eq(users.id, targetId))
         .returning(userSelection);
+      if (!updated) throw new NotFoundException('User not found.');
       await this.audit.record(context, {
         action: 'user.role_changed',
         actor: { type: 'user', userId: actorId },

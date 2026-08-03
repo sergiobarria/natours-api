@@ -42,7 +42,7 @@ import { UsersService } from './users.service.js';
 
 @Controller('users')
 @ApiTags('users')
-@ApiBearerAuth()
+@ApiBearerAuth('bearerAuth')
 @UseInterceptors(SensitiveResponseInterceptor)
 export class UsersController {
   constructor(
