@@ -1,12 +1,15 @@
 import { randomUUID } from 'node:crypto';
+import { RequestMethod } from '@nestjs/common';
 import { Params } from 'nestjs-pino';
 import { AppConfigService } from '../config/app-config.service.js';
 import { ENVIRONMENT_VARIABLES } from '../config/config.constants.js';
+import { HTTP_HEADERS, HTTP_ROUTES, REQUEST_ID_CONTRACT } from '../http/http.constants.js';
 
-const requestIdPattern = /^[A-Za-z0-9._:-]{1,128}$/;
+const requestIdPattern = new RegExp(REQUEST_ID_CONTRACT.pattern);
 
 export function createLoggerOptions(config: AppConfigService): Params {
   return {
+    forRoutes: [{ path: HTTP_ROUTES.catchAll, method: RequestMethod.ALL }],
     pinoHttp: {
       level: config.logLevel,
       transport: config.isDevelopment
@@ -16,13 +19,13 @@ export function createLoggerOptions(config: AppConfigService): Params {
           }
         : undefined,
       genReqId(request, response) {
-        const providedId = request.headers['x-request-id'];
+        const providedId = request.headers[HTTP_HEADERS.requestId];
         const requestId =
           typeof providedId === 'string' && requestIdPattern.test(providedId)
             ? providedId
             : randomUUID();
 
-        response.setHeader('x-request-id', requestId);
+        response.setHeader(HTTP_HEADERS.requestId, requestId);
         return requestId;
       },
       redact: {

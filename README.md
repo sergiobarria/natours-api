@@ -52,6 +52,13 @@ listed in `DATABASE_RESET_ALLOWED_DATABASES` and worker databases derived from t
 `ALLOW_DATABASE_RESET=true` only when intentionally resetting another non-production database.
 Demo seeds are never production-safe.
 
+The generated OpenAPI document is a reviewed contract artifact:
+
+```shell
+pnpm openapi:generate # update openapi/openapi.json after an intentional contract change
+pnpm openapi:check    # fail when generated and committed contracts differ
+```
+
 The initial HTTP surface is:
 
 - `GET /api/v1` — API discovery response
@@ -69,6 +76,7 @@ pnpm typecheck
 pnpm test
 pnpm test:integration
 pnpm test:e2e
+pnpm openapi:check
 pnpm build
 ```
 

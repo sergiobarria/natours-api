@@ -1,10 +1,125 @@
-import { INestApplication } from '@nestjs/common';
+import { Type } from 'class-transformer';
+import { IsInt, Min } from 'class-validator';
+import {
+  ConflictException,
+  Controller,
+  Get,
+  HttpCode,
+  HttpStatus,
+  INestApplication,
+  InternalServerErrorException,
+  Query,
+  StreamableFile,
+} from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
+import { ApiExcludeController } from '@nestjs/swagger';
 import { Logger } from 'nestjs-pino';
 import request from 'supertest';
 import { AppModule } from '../src/app.module.js';
 import { configureApplication } from '../src/bootstrap.js';
 import { AppConfigService } from '../src/config/app-config.service.js';
+import { DomainError } from '../src/http/errors/domain.error.js';
+import { NativeResponse } from '../src/http/response/native-response.decorator.js';
+import {
+  presentCollection,
+  presentPaginated,
+  presentResource,
+} from '../src/http/response/response.presenter.js';
+
+interface TestErrorResponse {
+  error: {
+    code: string;
+    message: string;
+    details?: unknown;
+    requestId: string;
+  };
+}
+
+function readErrorResponse(response: { body: unknown }): TestErrorResponse {
+  return response.body as TestErrorResponse;
+}
+
+class ContractQuery {
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  count!: number;
+}
+
+@ApiExcludeController()
+@Controller('contract-tests')
+class ContractTestController {
+  @Get('collection')
+  collection() {
+    return presentCollection([{ id: 'first' }, { id: 'second' }]);
+  }
+
+  @Get('presented-resource')
+  presentedResource() {
+    return presentResource({ id: 'presented' });
+  }
+
+  @Get('pagination')
+  pagination() {
+    return presentPaginated([{ id: 'second-page' }], {
+      page: 2,
+      perPage: 1,
+      totalItems: 3,
+      path: '/api/v1/contract-tests/pagination',
+    });
+  }
+
+  @Get('validation')
+  validation(@Query() query: ContractQuery) {
+    return query;
+  }
+
+  @Get('domain-error')
+  domainError(): never {
+    throw new DomainError({
+      code: 'CONTRACT_TEST_FAILED',
+      status: HttpStatus.UNPROCESSABLE_ENTITY,
+      message: 'The contract test failed safely.',
+      details: { reason: 'fixture' },
+    });
+  }
+
+  @Get('conflict')
+  conflict(): never {
+    throw new ConflictException('The fixture conflicts with existing state.');
+  }
+
+  @Get('unexpected-error')
+  unexpectedError(): never {
+    throw new Error('sensitive internal failure');
+  }
+
+  @Get('internal-http-error')
+  internalHttpError(): never {
+    throw new InternalServerErrorException('sensitive HTTP exception failure');
+  }
+
+  @Get('no-content')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  noContent(): void {}
+
+  @Get('stream')
+  stream(): StreamableFile {
+    return new StreamableFile(Buffer.from('stream-content'));
+  }
+
+  @Get('native')
+  @NativeResponse()
+  nativeResponse() {
+    return { native: true };
+  }
+
+  @Get('native-error')
+  @NativeResponse()
+  nativeError(): never {
+    throw new ConflictException('Native conflict response.');
+  }
+}
 
 describe('application foundation (e2e)', () => {
   let app: INestApplication;
@@ -13,6 +128,7 @@ describe('application foundation (e2e)', () => {
   beforeAll(async () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [AppModule],
+      controllers: [ContractTestController],
     }).compile();
 
     app = moduleFixture.createNestApplication();
@@ -30,7 +146,33 @@ describe('application foundation (e2e)', () => {
     await request(httpServer)
       .get('/api/v1')
       .expect(200)
-      .expect({ name: 'natours-api', version: '1' });
+      .expect({ data: { name: 'natours-api', version: '1' } });
+  });
+
+  it('wraps collections and presents deterministic pagination links', async () => {
+    await request(httpServer)
+      .get('/api/v1/contract-tests/collection')
+      .expect(200)
+      .expect({ data: [{ id: 'first' }, { id: 'second' }] });
+    await request(httpServer)
+      .get('/api/v1/contract-tests/presented-resource')
+      .expect(200)
+      .expect({ data: { id: 'presented' } });
+
+    const paginated = await request(httpServer)
+      .get('/api/v1/contract-tests/pagination')
+      .expect(200);
+    expect(paginated.body).toEqual({
+      data: [{ id: 'second-page' }],
+      meta: { pagination: { page: 2, perPage: 1, totalItems: 3, totalPages: 3 } },
+      links: {
+        self: '/api/v1/contract-tests/pagination?page=2&per_page=1',
+        first: '/api/v1/contract-tests/pagination?page=1&per_page=1',
+        last: '/api/v1/contract-tests/pagination?page=3&per_page=1',
+        previous: '/api/v1/contract-tests/pagination?page=1&per_page=1',
+        next: '/api/v1/contract-tests/pagination?page=3&per_page=1',
+      },
+    });
   });
 
   it('serves health outside the versioned API', async () => {
@@ -41,7 +183,102 @@ describe('application foundation (e2e)', () => {
   });
 
   it('returns 404 for an unknown route', async () => {
-    await request(httpServer).get('/api/v1/missing').expect(404);
+    const response = await request(httpServer)
+      .get('/api/v1/missing')
+      .set('x-request-id', 'missing-route-request')
+      .expect(404);
+
+    expect(response.body).toEqual({
+      error: {
+        code: 'NOT_FOUND',
+        message: 'Cannot GET /api/v1/missing',
+        requestId: 'missing-route-request',
+      },
+    });
+    expect(response.headers['x-request-id']).toBe(readErrorResponse(response).error.requestId);
+  });
+
+  it('maps validation details, domain errors, and standard HTTP errors', async () => {
+    const validation = await request(httpServer)
+      .get('/api/v1/contract-tests/validation?count=invalid&unexpected=true')
+      .expect(400);
+    const validationError = readErrorResponse(validation).error;
+    expect(validationError).toMatchObject({
+      code: 'VALIDATION_FAILED',
+      message: 'The request contains invalid fields.',
+      requestId: validation.headers['x-request-id'],
+    });
+    expect(validationError.details).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ field: 'count', code: 'INVALID_INTEGER' }),
+        expect.objectContaining({ field: 'unexpected', code: 'UNKNOWN_FIELD' }),
+      ]),
+    );
+
+    const domain = await request(httpServer).get('/api/v1/contract-tests/domain-error').expect(422);
+    expect(readErrorResponse(domain).error).toEqual({
+      code: 'CONTRACT_TEST_FAILED',
+      message: 'The contract test failed safely.',
+      details: { reason: 'fixture' },
+      requestId: domain.headers['x-request-id'],
+    });
+
+    const conflict = await request(httpServer).get('/api/v1/contract-tests/conflict').expect(409);
+    expect(readErrorResponse(conflict).error).toMatchObject({
+      code: 'CONFLICT',
+      message: 'The fixture conflicts with existing state.',
+    });
+  });
+
+  it('hides unexpected failures and preserves request correlation', async () => {
+    const response = await request(httpServer)
+      .get('/api/v1/contract-tests/unexpected-error')
+      .set('x-request-id', 'unexpected-error-request')
+      .expect(500);
+
+    expect(response.body).toEqual({
+      error: {
+        code: 'INTERNAL_SERVER_ERROR',
+        message: 'An unexpected error occurred.',
+        requestId: 'unexpected-error-request',
+      },
+    });
+    expect(JSON.stringify(response.body)).not.toContain('sensitive internal failure');
+
+    const httpException = await request(httpServer)
+      .get('/api/v1/contract-tests/internal-http-error')
+      .expect(500);
+    expect(readErrorResponse(httpException).error).toMatchObject({
+      code: 'INTERNAL_SERVER_ERROR',
+      message: 'An unexpected error occurred.',
+    });
+    expect(JSON.stringify(httpException.body)).not.toContain('sensitive HTTP exception failure');
+  });
+
+  it('keeps no-content, stream, and explicitly native responses outside the envelope', async () => {
+    const noContent = await request(httpServer)
+      .get('/api/v1/contract-tests/no-content')
+      .expect(204);
+    expect(noContent.text).toBe('');
+
+    const stream = await request(httpServer).get('/api/v1/contract-tests/stream').expect(200);
+    const streamBody = stream.body as unknown;
+    expect(Buffer.isBuffer(streamBody)).toBe(true);
+    if (!Buffer.isBuffer(streamBody)) {
+      throw new Error('Expected the stream response body to be a buffer');
+    }
+    expect(streamBody.toString()).toBe('stream-content');
+
+    await request(httpServer)
+      .get('/api/v1/contract-tests/native')
+      .expect(200)
+      .expect({ native: true });
+
+    await request(httpServer).get('/api/v1/contract-tests/native-error').expect(409).expect({
+      message: 'Native conflict response.',
+      error: 'Conflict',
+      statusCode: 409,
+    });
   });
 
   it('returns or generates a request id', async () => {
@@ -79,5 +316,7 @@ describe('application foundation (e2e)', () => {
     const document = await request(httpServer).get('/docs-json').expect(200);
     const openApiDocument = document.body as { paths: Record<string, unknown> };
     expect(openApiDocument.paths).toHaveProperty('/api/v1');
+    expect(openApiDocument.paths).not.toHaveProperty('/health');
+    expect(openApiDocument).toHaveProperty('openapi');
   });
 });

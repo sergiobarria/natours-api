@@ -42,6 +42,7 @@ pnpm test
 pnpm test:integration
 pnpm test:cov
 pnpm test:e2e
+pnpm openapi:check
 pnpm build
 ```
 
@@ -53,7 +54,8 @@ CI installs the frozen lockfile and runs the non-mutating checks, tests, and bui
 - End-to-end tests (`test/*.e2e-spec.ts`) boot Nest and use Supertest against the HTTP surface.
 - Persistence integration tests create isolated PostgreSQL databases per Jest worker from
   `TEST_DATABASE_URL`; the configured database role must be allowed to create databases.
-- Future contract checks should generate OpenAPI and compare it with an approved artifact.
+- Contract checks generate a normalized OpenAPI document and compare it with the committed
+  `openapi/openapi.json` artifact.
 
 Test observable behavior, invalid input, security headers, CORS, request correlation, and error paths. Add concurrency and adapter tests when database and external integrations arrive.
 
@@ -69,6 +71,10 @@ than merging individual features directly into `main`.
 4. Update OpenAPI decorators and inspect the generated document.
 5. Run formatting, linting, type checks, tests, and the production build.
 6. Document new environment variables, jobs, integrations, and recovery steps.
+
+Run `pnpm openapi:generate` after an intentional HTTP contract change and review the resulting
+artifact. CI runs `pnpm openapi:check`, which generates into a temporary directory and rejects
+drift without modifying the committed contract.
 
 Generate migrations with `pnpm db:generate -- --name=<name>`, review the SQL and snapshot, and
 commit both. Apply them with `pnpm db:migrate`; never rewrite a migration already used by a shared

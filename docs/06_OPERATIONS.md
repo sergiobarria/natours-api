@@ -62,6 +62,11 @@ Jobs are idempotent, use bounded retries and backoff, emit structured failures, 
 Graceful shutdown hooks close the PostgreSQL pool. Future readiness checks should be bounded and
 should not make the liveness route dependent on external systems.
 
+Domain responses use the documented success/error envelopes. Unexpected exceptions are logged
+with internal context while clients receive only a safe `INTERNAL_SERVER_ERROR` response and the
+correlated request ID. Health, OpenAPI/Scalar, file streams, and explicitly native contracts remain
+outside the envelope.
+
 Monitor latency and errors, PostgreSQL pool saturation and locks, Redis availability, job age/failures, scheduler execution, Stripe webhook lag/failures, unresolved booking states, storage errors, and memory/event-loop health.
 
 ## Email

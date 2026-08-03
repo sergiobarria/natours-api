@@ -35,7 +35,9 @@
     "db:seed:demo": "tsx scripts/database/seed-demo.ts",
     "db:seed": "tsx scripts/database/seed.ts",
     "db:purge": "tsx scripts/database/purge.ts",
-    "db:reset": "tsx scripts/database/reset.ts"
+    "db:reset": "tsx scripts/database/reset.ts",
+    "openapi:generate": "tsx scripts/openapi/generate.ts",
+    "openapi:check": "tsx scripts/openapi/check.ts"
   },
   "dependencies": {
     "@nestjs/common": "^11.0.1",
