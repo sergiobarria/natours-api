@@ -2,7 +2,7 @@
 
 ## Application shape
 
-Natours is a modular NestJS TypeScript application. Bootstrap installs native URI versioning below `/api/v1`, Helmet, an environment-driven CORS allowlist, strict global validation, non-production Scalar documentation backed by Nest-generated OpenAPI, structured request logging, and graceful shutdown. `GET /health` is deliberately version-neutral.
+The target Natours application is a native ESM, modular NestJS TypeScript application. Bootstrap installs native URI versioning below `/api/v1`, Helmet, an environment-driven CORS allowlist, strict global validation, non-production Scalar documentation backed by Nest-generated OpenAPI, structured request logging, and graceful shutdown. `GET /health` is deliberately version-neutral.
 
 The implemented foundation contains the root module, typed configuration, logging, and `HealthModule`. Organize future capabilities as focused NestJS modules such as `AuthModule`, `UsersModule`, `ToursModule`, `BookingsModule`, and `ReviewsModule`.
 
@@ -18,11 +18,11 @@ Use dependency-injection tokens for real external boundaries. Do not wrap every 
 
 ## Future Drizzle and PostgreSQL persistence
 
-Define schema modules for users, roles, permissions, access tokens, tours, guide assignments, departures, media, bookings, travelers, reviews, audits, idempotency records, reset tokens, and health history. Generate SQL migrations with Drizzle Kit and commit them.
+Define schema modules for Better Auth users, accounts, sessions, and verification records plus application roles, tours, guide assignments, departures, media, bookings, travelers, reviews, audits, idempotency records, outbox/jobs, and health history. Generate and review Better Auth's Drizzle schema, then manage every change through committed Drizzle Kit migrations rather than runtime schema mutation.
 
 Use PostgreSQL constraints for invariants that survive concurrency: unique normalized email, one role per user, unique slugs, unique guide assignments, unique tour/departure instant, one review per user/tour, unique payment identifiers, and idempotency uniqueness. Use check constraints for non-negative capacity and valid money where practical.
 
-Application-owned IDs are ULIDs generated before insertion. Store timestamps as timezone-aware PostgreSQL values and normalize input to UTC.
+Public and domain IDs are UUID v4 values stored in native PostgreSQL `uuid` columns. Generate IDs with `crypto.randomUUID()` before insertion when workflows need the identifier in advance. Configure Better Auth's database ID strategy as `uuid`. Store timestamps as timezone-aware PostgreSQL values and normalize input to UTC.
 
 ## Transactions and locking
 
@@ -30,13 +30,17 @@ Expose a transaction boundary from the database layer and pass the transaction-s
 
 Transactions protect account/role creation, credential mutation and revocation, guide-team replacement, capacity updates, booking state changes, review aggregates, and managed deletion.
 
+Required audit records participate in the same database transaction as their domain mutation. Repositories do not emit audits implicitly; the application use case records an explicit sanitized event so correctness does not depend on subscribers. System jobs and webhooks identify themselves through a named system actor.
+
 Do not enqueue work before commit. Use an after-commit mechanism when execution is in-process, or a transactional outbox when delivery must survive process failure. Workers claim outbox/jobs idempotently.
 
-## Authentication and authorization
+## Better Auth and application authorization
 
-Generate high-entropy opaque access tokens, return plaintext once, and store a keyed cryptographic hash plus name, expiration, last-use metadata, and owner. A Bearer guard resolves the token and attaches the authenticated principal.
+Better Auth owns email/password credentials, verification, recovery, 30-day concurrent sessions, and Bearer session authentication below `/api/v1/auth`. Use the community-maintained Nest integration to attach Better Auth session and user context. Do not enable Better Auth's admin plugin initially.
 
-Permission guards check canonical permission strings. Ownership policies are application services or guards that load the scoped resource without exposing cross-user existence. Passwords use a memory-hard password hashing algorithm with production-calibrated settings.
+Natours owns the user's single primary role and canonical permission map. Permission guards check named permissions; ownership policies load the scoped resource without exposing cross-user existence. Administrative controllers enforce self-management, guide-assignment, booking-history, and auditing constraints rather than exposing unrestricted Better Auth administration routes.
+
+Better Auth is ESM-only and requires access to the unparsed authentication request body. Disable Nest's automatic body parser, mount Better Auth before application JSON parsing, and restore JSON parsing for normal DTO-backed routes. Preserve the future Stripe webhook raw body independently so neither integration weakens global validation.
 
 ## Stripe and booking state
 
@@ -54,13 +58,13 @@ Deletion removes storage objects before committing metadata deletion, or records
 
 ## Future queues, jobs, and scheduling
 
-Run API, worker, and scheduler as independently scalable processes. Redis-backed jobs handle email and durable asynchronous work. Scheduled jobs expire booking holds every minute, reconcile refunds every ten minutes, clear reset tokens periodically, run readiness checks, and prune operational history.
+Run API, worker, and scheduler as independently scalable processes. Redis-backed jobs handle email and durable asynchronous work. Scheduled jobs expire booking holds every minute, reconcile refunds every ten minutes, clear expired Better Auth verification records periodically, run readiness checks, and prune operational history.
 
 Every job has a stable idempotency key, bounded retries, exponential backoff where appropriate, structured failure logging, and a dead-letter or failed-job inspection path.
 
 ## Observability and flows
 
-`nestjs-pino` emits structured request logs with an accepted or generated `x-request-id`. Local development uses readable output; test and production use JSON. Request bodies are not logged, and sensitive headers and credential fields are redacted centrally. Sentry, metrics, and traces are future integrations; audit sensitive domain mutations separately from operational logs.
+`nestjs-pino` emits structured request logs with an accepted or generated `x-request-id`. Local development uses readable output; test and production use JSON. Request bodies are not logged, and sensitive headers and credential fields are redacted centrally. Sentry, metrics, and traces are future integrations. Append-only audit records are durable domain evidence and remain separate from operational logs.
 
 ```text
 booking request -> validate -> transaction + lock departure -> reserve seats

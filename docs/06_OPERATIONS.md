@@ -14,10 +14,11 @@ LOG_LEVEL=info
 CORS_ORIGINS=https://www.example.com
 DATABASE_URL=postgresql://...
 REDIS_URL=redis://...
-TOKEN_PEPPER=
+BETTER_AUTH_URL=https://api.example.com
+BETTER_AUTH_SECRET=
 ```
 
-Only `NODE_ENV`, `HOST`, `PORT`, `LOG_LEVEL`, and `CORS_ORIGINS` are implemented today. Production startup requires an explicit comma-separated CORS allowlist. Add and validate the remaining variables alongside their integrations.
+Only `NODE_ENV`, `HOST`, `PORT`, `LOG_LEVEL`, and `CORS_ORIGINS` are implemented today. Production startup requires an explicit comma-separated CORS allowlist. Add and validate the remaining variables alongside their integrations. Better Auth secrets require at least 32 high-entropy characters and deliberate rotation procedures.
 
 ## Deployment process
 
@@ -35,12 +36,12 @@ Prefer backward-compatible expand/migrate/contract database changes when multipl
 
 At least one worker consumes durable jobs. Exactly one logical scheduler execution should enqueue each occurrence; use a distributed lock or a platform scheduler with concurrency control.
 
-| Frequency        | Work                                                                            |
-| ---------------- | ------------------------------------------------------------------------------- |
-| Every minute     | Expire checkout holds and run dependency health checks                          |
-| Every 10 minutes | Reconcile unresolved booking refunds                                            |
-| Every 15 minutes | Remove expired password-reset tokens                                            |
-| Daily            | Prune expired access tokens, audit/health history according to retention policy |
+| Frequency        | Work                                                                       |
+| ---------------- | -------------------------------------------------------------------------- |
+| Every minute     | Expire checkout holds and run dependency health checks                     |
+| Every 10 minutes | Reconcile unresolved booking refunds                                       |
+| Every 15 minutes | Remove expired Better Auth verification records                            |
+| Daily            | Prune expired sessions, audit/health history according to retention policy |
 
 Jobs are idempotent, use bounded retries and backoff, emit structured failures, and expose dead-letter inspection and replay procedures.
 
@@ -63,7 +64,7 @@ MAIL_FROM_ADDRESS=hello@example.com
 MAIL_FROM_NAME=Natours
 ```
 
-Use a verified sending domain. `FRONTEND_URL` receives password and verification handoffs; `APP_URL` remains the signed API origin. Queue messages with no plaintext passwords, access tokens, or unnecessary personal data. Monitor provider errors and queue failures without changing generic account-enumeration-safe responses.
+Use a verified sending domain. `FRONTEND_URL` receives password and verification handoffs; `APP_URL` and `BETTER_AUTH_URL` identify the API origin while Better Auth uses `/api/v1/auth` as its configured base path. Queue messages with no plaintext passwords, session tokens, or unnecessary personal data. Monitor provider errors and queue failures without changing generic account-enumeration-safe responses.
 
 ## Stripe
 
@@ -103,13 +104,13 @@ A cleanup utility must default to dry run, target an explicitly configured devel
 
 ## Rate limiting and sensitive data
 
-Use Redis for distributed counters and job coordination. Key guests by trusted client IP and authenticated callers by user ULID. Apply narrower cumulative limits to authentication, recovery, account mutation, and webhooks.
+Use Redis for distributed counters and job coordination. Key guests by trusted client IP and authenticated callers by user UUID. Apply narrower cumulative limits to authentication, recovery, account mutation, and webhooks without bypassing Better Auth's own protections.
 
-Apply no-store headers to tokens and sensitive account or booking data. Redact passwords, confirmations, current passwords, reset tokens, authorization headers, cookie values, Stripe secrets, storage credentials, database URLs, token hashes, and returned plaintext tokens from logs, traces, error reporting, and audit records.
+Apply no-store headers to sessions and sensitive account or booking data. Redact passwords, confirmations, current passwords, verification/recovery tokens, authorization headers, cookie values, Better Auth secrets, session tokens, Stripe secrets, storage credentials, and database URLs from logs, traces, error reporting, and audit records.
 
 ## Backup and recovery
 
-Automate PostgreSQL backups and regularly test point-in-time recovery. Define retention for audits, tokens, health history, and job records. Object-storage versioning or lifecycle policy should match business recovery requirements. Document recovery for database loss, Redis loss, missed scheduled jobs, delayed webhooks, and partially completed media operations.
+Automate PostgreSQL backups and regularly test point-in-time recovery. Define retention for audits, sessions, verification records, health history, and job records. Object-storage versioning or lifecycle policy should match business recovery requirements. Document recovery for database loss, Redis loss, missed scheduled jobs, delayed webhooks, and partially completed media operations.
 
 ## Security checklist
 

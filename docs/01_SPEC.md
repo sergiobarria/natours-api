@@ -4,7 +4,9 @@
 
 This document is the entry point to Natours' living product and engineering contract. The generated OpenAPI document owns exhaustive HTTP schemas. Markdown owns business intent, cross-cutting behavior, domain invariants, workflows, and operating requirements.
 
-## Current capabilities
+## Planned capabilities
+
+The application currently provides only its NestJS foundation. The following capabilities define the committed implementation backlog:
 
 - Registration, login, logout, email verification, password recovery, and account updates.
 - One primary role per user with permission-based administration.
@@ -18,27 +20,28 @@ This document is the entry point to Natours' living product and engineering cont
 ## System-wide requirements
 
 - The implementation uses TypeScript and NestJS. Drizzle ORM and PostgreSQL are the planned persistence stack and are not installed yet.
-- Application-owned records use ULIDs. Infrastructure tables may use implementation-appropriate identifiers; tour image operations may expose integer media IDs.
+- Public and domain records use UUID v4 values stored in native PostgreSQL `uuid` columns. Internal infrastructure records may use implementation-appropriate identifiers.
 - Version 1 is mounted under `/api/v1`.
 - UTC is canonical for stored and transmitted instants. Timestamps use ISO 8601 with an explicit offset.
-- Resource responses follow the project's JSON:API-style representation. Writes use top-level JSON except multipart image uploads.
+- Domain endpoints use the shared `data`/`meta`/`links` success envelope and `error` failure envelope defined in the API contract. Better Auth's native `/api/v1/auth/*` contract is an explicit exception. Domain writes use top-level JSON except multipart image uploads.
 - Controllers remain transport-focused; application services implement use cases; repositories isolate Drizzle queries; stable boundaries use typed DTOs.
 - Required workflows use direct orchestration. Correctness may not depend on optional event handlers.
 - Cross-record invariants are transactional. Asynchronous work is enqueued only after commit or through a transactional outbox.
 - Tours and departures are soft-deleted. Reviews and individual media are hard-deleted through explicit workflows.
-- Authentication uses hashed Bearer tokens. Authorization uses permissions or ownership policies rather than role-name conditionals.
+- Better Auth owns credentials, verification, recovery, sessions, and Bearer authentication. Nest owns the single application role, permissions, ownership policies, administrative constraints, and audits.
 - External input is validated, unknown write fields are rejected, and sensitive responses are not cached.
 
 ## Contract documents
 
-| Document                           | Contract owned                                  |
-| ---------------------------------- | ----------------------------------------------- |
-| [Business](00_BUSINESS.md)         | Fictional company and product context           |
-| [Domain](02_DOMAIN.md)             | Entities, lifecycle rules, and invariants       |
-| [API](03_API.md)                   | HTTP behavior, errors, and workflows            |
-| [Architecture](04_ARCHITECTURE.md) | NestJS structure, persistence, and integrations |
-| [Development](05_DEVELOPMENT.md)   | Setup, testing, and migrations                  |
-| [Operations](06_OPERATIONS.md)     | Deployment, health, jobs, and maintenance       |
+| Document                                | Contract owned                                  |
+| --------------------------------------- | ----------------------------------------------- |
+| [Business](00_BUSINESS.md)              | Fictional company and product context           |
+| [Domain](02_DOMAIN.md)                  | Entities, lifecycle rules, and invariants       |
+| [API](03_API.md)                        | HTTP behavior, errors, and workflows            |
+| [Architecture](04_ARCHITECTURE.md)      | NestJS structure, persistence, and integrations |
+| [Development](05_DEVELOPMENT.md)        | Setup, testing, and migrations                  |
+| [Operations](06_OPERATIONS.md)          | Deployment, health, jobs, and maintenance       |
+| [Backlog](07_IMPLEMENTATION_BACKLOG.md) | Dependency-ordered implementation features      |
 
 ## Documentation policy
 

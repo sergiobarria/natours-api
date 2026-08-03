@@ -12,7 +12,7 @@ pnpm install --frozen-lockfile
 cp .env.example .env
 ```
 
-Environment variables are parsed by Zod during bootstrap. Invalid ports, log levels, environments, or missing production CORS origins stop startup with a useful error. PostgreSQL, Redis, Stripe, storage, email, workers, and schedulers are future capabilities and are not required for the current application.
+Environment variables are parsed by Zod during bootstrap. Invalid ports, log levels, environments, or missing production CORS origins stop startup with a useful error. PostgreSQL, Better Auth, Redis, Stripe, storage, email, workers, and schedulers are future capabilities and are not required for the current application.
 
 ## Running locally
 
@@ -59,3 +59,5 @@ Test observable behavior, invalid input, security headers, CORS, request correla
 6. Document new environment variables, jobs, integrations, and recovery steps.
 
 Do not document planned scripts as if they already exist. When persistence is introduced, commit generated Drizzle migrations and never rewrite migrations already used by a shared environment.
+
+Better Auth schema generation is an input to the reviewed Drizzle schema, not an alternative migration system. The persistence feature must also convert the package to native ESM and keep unit/e2e tooling compatible with ESM dependencies.
