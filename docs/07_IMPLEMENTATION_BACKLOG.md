@@ -117,22 +117,22 @@ Enables travelers and operators to safely access protected capabilities without 
 
 ### Scope and subtasks
 
-- [ ] Integrate Better Auth with the Drizzle PostgreSQL adapter, `generateId: 'uuid'`, a validated URL/secret, and reviewed migrations for user, account, session, and verification tables.
-- [ ] Mount native Better Auth endpoints under `/api/v1/auth`; configure email/password, required verification, 30-day concurrent sessions, Bearer support, trusted origins, and enumeration-safe recovery.
-- [ ] Disable automatic body parsing at bootstrap, give Better Auth its required unparsed stream, and restore JSON parsing/DTO validation for normal Nest routes without consuming the future Stripe raw body.
-- [ ] Integrate the community Nest bridge for global session resolution while explicitly allowing catalog, health, docs, auth, and other public routes.
-- [ ] Queue verification and recovery messages through the email adapter and test expiry, replay, failure, and non-existent-account behavior.
-- [ ] Store exactly one application-owned role (`user`, `guide`, `lead-guide`, or `admin`) and define the canonical permission map as typed Nest policy configuration.
-- [ ] Add permission and ownership guards plus authenticated principal/session access for application services; do not enable Better Auth's admin plugin.
-- [ ] Implement Natours profile, email/password change, and administrative user endpoints with self-change/delete, guide-assignment, booking-history, session-revocation, rate-limit, no-store, and audit rules.
-- [ ] Configure logout to revoke the current session, password reset to revoke every session, and authenticated password change to retain only the current session.
-- [ ] Document native Better Auth payloads separately in OpenAPI and test the client-facing Bearer flow end to end.
+- [x] Integrate Better Auth with the Drizzle PostgreSQL adapter, `generateId: 'uuid'`, a validated URL/secret, and reviewed migrations for user, account, session, and verification tables.
+- [x] Mount native Better Auth endpoints under `/api/v1/auth`; configure email/password, required verification, 30-day concurrent sessions, Bearer support, trusted origins, and enumeration-safe recovery.
+- [x] Disable automatic body parsing at bootstrap, give Better Auth its required unparsed stream, and restore JSON parsing/DTO validation for normal Nest routes without consuming the future Stripe raw body.
+- [x] Integrate the community Nest bridge for global session resolution while explicitly allowing catalog, health, docs, auth, and other public routes.
+- [x] Queue verification and recovery messages through the email adapter and test expiry, replay, failure, and non-existent-account behavior.
+- [x] Store exactly one application-owned role (`user`, `guide`, `lead-guide`, or `admin`) and define the canonical permission map as typed Nest policy configuration.
+- [x] Add permission and ownership guards plus authenticated principal/session access for application services; do not enable Better Auth's admin plugin.
+- [x] Implement Natours profile, email/password change, and administrative user endpoints with self-change/delete, session-revocation, rate-limit, no-store, and audit rules. Guide-assignment and booking-history constraints remain at the application-policy boundary until F-04 and F-06 add those records.
+- [x] Configure logout to revoke the current session, password reset to revoke every session, and authenticated password change to retain only the current session.
+- [x] Document native Better Auth payloads separately in OpenAPI and test the client-facing Bearer flow end to end.
 
 ### Acceptance criteria
 
 - Registration, verification, login, session-authenticated request, logout, recovery, reset, and account update flows work through the documented routes.
 - No password, recovery/verification value, session token, or Better Auth secret appears in logs, audits, or domain responses.
-- One user cannot bypass Natours permission, ownership, self-administration, assignment, or booking-history constraints through Better Auth routes.
+- One user cannot bypass Natours permission, ownership, or self-administration constraints through Better Auth routes; assignment and booking-history constraints apply when F-04 and F-06 introduce those records.
 - Auth schema changes are generated, reviewed, and applied only through Drizzle migrations.
 
 ### Exclusions

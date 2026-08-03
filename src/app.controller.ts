@@ -1,5 +1,6 @@
 import { Controller, Get, HttpStatus, Version } from '@nestjs/common';
 import { ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { PublicRoute } from './identity/identity.decorators.js';
 import { ERROR_CODES, ERROR_MESSAGES } from './http/errors/error.constants.js';
 import { API_CONTRACT } from './http/http.constants.js';
 import { ApiErrorResponse } from './http/openapi/api-error-response.decorator.js';
@@ -10,6 +11,7 @@ export interface ApiDescription {
 }
 
 @ApiTags('application')
+@PublicRoute()
 @Controller()
 export class AppController {
   @Get()

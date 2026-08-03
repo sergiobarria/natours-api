@@ -7,12 +7,14 @@ import { createLoggerOptions } from './logging/logger.config.js';
 import { PROCESS_ROLE } from './platform/jobs/job.constants.js';
 import { PlatformJobsModule } from './platform/jobs/platform-jobs.module.js';
 import { WorkerRuntimeModule } from './platform/jobs/worker-runtime.module.js';
+import { IdentityEmailModule } from './identity/identity-email.module.js';
 
 @Module({
   imports: [
     AppConfigModule,
     DatabaseModule,
     PlatformJobsModule,
+    IdentityEmailModule,
     LoggerModule.forRootAsync({
       imports: [AppConfigModule],
       inject: [AppConfigService],

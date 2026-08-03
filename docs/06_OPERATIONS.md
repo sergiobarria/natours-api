@@ -59,6 +59,13 @@ OPERATIONS_PRUNE_SCHEDULE=0 3 * * *
 HEALTH_HISTORY_RETENTION_DAYS=30
 BETTER_AUTH_URL=https://api.example.com
 BETTER_AUTH_SECRET=
+BETTER_AUTH_TRUSTED_ORIGINS=https://www.example.com
+BETTER_AUTH_SESSION_EXPIRES_IN_SECONDS=2592000
+BETTER_AUTH_SESSION_UPDATE_AGE_SECONDS=86400
+BETTER_AUTH_VERIFICATION_EXPIRES_IN_SECONDS=3600
+BETTER_AUTH_PASSWORD_RESET_EXPIRES_IN_SECONDS=3600
+BETTER_AUTH_MIN_PASSWORD_LENGTH=8
+BETTER_AUTH_MAX_PASSWORD_LENGTH=128
 ```
 
 Every Redis namespace, queue name, retry policy, concurrency value, retention bound, polling
@@ -153,8 +160,10 @@ MAIL_FROM_NAME=Natours
 Use a verified sending domain. `FRONTEND_URL` receives password and verification handoffs; `APP_URL` and `BETTER_AUTH_URL` identify the API origin while Better Auth uses `/api/v1/auth` as its configured base path. Queue messages with no plaintext passwords, session tokens, or unnecessary personal data. Monitor provider errors and queue failures without changing generic account-enumeration-safe responses.
 
 Resend is the selected provider. Stage 1 exposes only the `EmailSender` boundary and deterministic
-test fake; add the live Resend adapter when identity delivery begins, with `RESEND_API_KEY` kept in
-the deployment secret store and the job idempotency key propagated to the provider boundary.
+test fake. Identity verification and recovery enqueue `auth.email.deliver` through the PostgreSQL
+transactional outbox. The worker calls Resend through `EmailSender` with the stable outbox
+idempotency key. Keep `RESEND_API_KEY` in the deployment secret store; retained failures are
+inspected and replayed through the existing job commands, which never display email payloads.
 
 ## Stripe
 

@@ -16,6 +16,7 @@ import { ApiExcludeController } from '@nestjs/swagger';
 import { Logger } from 'nestjs-pino';
 import request from 'supertest';
 import { Throttle } from '@nestjs/throttler';
+import { PublicRoute } from '../src/identity/identity.decorators.js';
 import { AppModule } from '../src/app.module.js';
 import { configureApplication } from '../src/bootstrap.js';
 import { AppConfigService } from '../src/config/app-config.service.js';
@@ -25,6 +26,11 @@ import { REDIS_CLIENT } from '../src/platform/redis/redis.constants.js';
 import type { RedisClient } from '../src/platform/redis/redis.types.js';
 import { RateLimitPolicy } from '../src/rate-limit/rate-limit.decorators.js';
 import { RATE_LIMIT_POLICY } from '../src/rate-limit/rate-limit.constants.js';
+import { DATABASE } from '../src/database/database.constants.js';
+import type { Database } from '../src/database/database.types.js';
+import { outboxMessages } from '../src/database/schema/platform-jobs.js';
+import { users } from '../src/database/schema/identity.js';
+import { and, desc, eq, sql } from 'drizzle-orm';
 import {
   presentCollection,
   presentPaginated,
@@ -52,6 +58,7 @@ class ContractQuery {
 }
 
 @ApiExcludeController()
+@PublicRoute()
 @Controller('contract-tests')
 class ContractTestController {
   @Get('rate-limit')
@@ -136,6 +143,11 @@ class ContractTestController {
 describe('application foundation (e2e)', () => {
   let app: INestApplication;
   let httpServer: Parameters<typeof request>[0];
+  let database: Database;
+  let authenticatedEmail: string;
+  let authenticatedPassword: string;
+  let authenticatedToken: string;
+  let authenticatedUserId: string;
 
   beforeAll(async () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
@@ -148,6 +160,7 @@ describe('application foundation (e2e)', () => {
     await configureApplication(app, app.get(AppConfigService));
     await app.init();
     httpServer = app.getHttpServer() as Parameters<typeof request>[0];
+    database = app.get(DATABASE);
   });
 
   afterAll(async () => {
@@ -159,6 +172,169 @@ describe('application foundation (e2e)', () => {
       .get('/api/v1')
       .expect(200)
       .expect({ data: { name: 'natours-api', version: '1' } });
+  });
+
+  it('completes registration, verification, Bearer login, session, and logout natively', async () => {
+    const email = `auth-${Date.now()}@example.com`;
+    const password = 'correct horse battery staple';
+    authenticatedEmail = email;
+    authenticatedPassword = password;
+
+    const registration = await request(httpServer)
+      .post('/api/v1/auth/sign-up/email')
+      .send({ email, name: 'Auth Test', password })
+      .expect(200);
+    expect(registration.body).not.toHaveProperty('data');
+
+    const [created] = await database.select().from(users).where(eq(users.email, email));
+    expect(created).toMatchObject({ email, emailVerified: false, role: 'user' });
+    if (!created) {
+      throw new Error('Expected the registered user to exist');
+    }
+    authenticatedUserId = created.id;
+
+    const [verificationMessage] = await database
+      .select()
+      .from(outboxMessages)
+      .where(
+        and(
+          eq(outboxMessages.jobName, 'auth.email.deliver'),
+          sql`${outboxMessages.payload}->>'recipient' = ${email}`,
+        ),
+      )
+      .orderBy(desc(outboxMessages.createdAt))
+      .limit(1);
+    expect(verificationMessage).toBeDefined();
+    const verificationPayload = verificationMessage?.payload as
+      { recipient?: string; url?: string } | undefined;
+    expect(verificationPayload?.recipient).toBe(email);
+    expect(verificationPayload?.url).toEqual(expect.any(String));
+    if (!verificationPayload?.url) {
+      throw new Error('Expected a verification URL in the durable email payload');
+    }
+    const verificationUrl = new URL(verificationPayload.url);
+    await request(httpServer)
+      .get(`${verificationUrl.pathname}${verificationUrl.search}`)
+      .expect(302);
+
+    const login = await request(httpServer)
+      .post('/api/v1/auth/sign-in/email')
+      .send({ email, password })
+      .expect(200);
+    const token = login.headers['set-auth-token'];
+    expect(typeof token).toBe('string');
+
+    await request(httpServer)
+      .get('/api/v1/auth/get-session')
+      .set('authorization', `Bearer ${String(token)}`)
+      .expect(200)
+      .expect(response => {
+        const body = response.body as { user: Record<string, unknown> };
+        expect(body.user).toMatchObject({ email });
+        expect(body.user).not.toHaveProperty('role');
+      });
+
+    await request(httpServer)
+      .post('/api/v1/auth/sign-out')
+      .set('authorization', `Bearer ${String(token)}`)
+      .expect(200);
+    await request(httpServer)
+      .get('/api/v1/auth/get-session')
+      .set('authorization', `Bearer ${String(token)}`)
+      .expect(200)
+      .expect(response => expect(response.body).toBeNull());
+
+    const secondLogin = await request(httpServer)
+      .post('/api/v1/auth/sign-in/email')
+      .send({ email, password })
+      .expect(200);
+    authenticatedToken = String(secondLogin.headers['set-auth-token']);
+  });
+
+  it('resolves an application principal and enforces user permissions and sensitive caching', async () => {
+    const profile = await request(httpServer)
+      .get('/api/v1/users/me')
+      .set('authorization', `Bearer ${authenticatedToken}`)
+      .expect(200);
+    expect(profile.body).toMatchObject({ data: { id: authenticatedUserId, role: 'user' } });
+    expect(profile.headers['cache-control']).toBe('no-store, private');
+    expect(profile.headers.pragma).toBe('no-cache');
+
+    await request(httpServer)
+      .patch('/api/v1/users/me')
+      .set('authorization', `Bearer ${authenticatedToken}`)
+      .send({ name: 'Updated Auth Test' })
+      .expect(200)
+      .expect(response =>
+        expect(response.body).toMatchObject({ data: { name: 'Updated Auth Test' } }),
+      );
+
+    await request(httpServer)
+      .get('/api/v1/users')
+      .set('authorization', `Bearer ${authenticatedToken}`)
+      .expect(403);
+
+    await database.update(users).set({ role: 'admin' }).where(eq(users.id, authenticatedUserId));
+    await request(httpServer)
+      .get('/api/v1/users')
+      .set('authorization', `Bearer ${authenticatedToken}`)
+      .expect(200);
+    await request(httpServer)
+      .patch(`/api/v1/users/${authenticatedUserId}/role`)
+      .set('authorization', `Bearer ${authenticatedToken}`)
+      .send({ role: 'user' })
+      .expect(403);
+  });
+
+  it('keeps password recovery account-enumeration safe and queues only durable email', async () => {
+    const body = { callbackURL: 'http://localhost:5173/reset-password' };
+    const missing = await request(httpServer)
+      .post('/api/v1/auth/request-password-reset')
+      .send({ ...body, email: `missing-${Date.now()}@example.com` })
+      .expect(200);
+    expect(missing.body).not.toHaveProperty('data');
+  });
+
+  it('changes a password without leaking failures and revokes only other sessions', async () => {
+    await request(httpServer)
+      .post('/api/v1/users/me/change-password')
+      .set('authorization', `Bearer ${authenticatedToken}`)
+      .send({ currentPassword: 'incorrect password', newPassword: 'another secure password' })
+      .expect(400)
+      .expect(response => {
+        const body = response.body as { error: { message: string } };
+        expect(body.error.message).toBe('The account security change could not be completed.');
+      });
+
+    const otherLogin = await request(httpServer)
+      .post('/api/v1/auth/sign-in/email')
+      .send({ email: authenticatedEmail, password: authenticatedPassword })
+      .expect(200);
+    const otherToken = String(otherLogin.headers['set-auth-token']);
+    const newPassword = 'updated correct horse battery staple';
+
+    const changed = await request(httpServer)
+      .post('/api/v1/users/me/change-password')
+      .set('authorization', `Bearer ${authenticatedToken}`)
+      .send({ currentPassword: authenticatedPassword, newPassword })
+      .expect(204);
+    authenticatedToken = String(changed.headers['set-auth-token']);
+    expect(authenticatedToken).not.toBe('undefined');
+    authenticatedPassword = newPassword;
+
+    await request(httpServer)
+      .get('/api/v1/auth/get-session')
+      .set('authorization', `Bearer ${authenticatedToken}`)
+      .expect(200)
+      .expect(response => {
+        const body = response.body as { user?: { id?: string } };
+        expect(body.user?.id).toBe(authenticatedUserId);
+      });
+    await request(httpServer)
+      .get('/api/v1/auth/get-session')
+      .set('authorization', `Bearer ${otherToken}`)
+      .expect(200)
+      .expect(response => expect(response.body).toBeNull());
   });
 
   it('wraps collections and presents deterministic pagination links', async () => {

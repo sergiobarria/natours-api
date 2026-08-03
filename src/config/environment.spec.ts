@@ -42,6 +42,21 @@ const databaseEnvironment = {
   HEALTH_SNAPSHOT_SCHEDULE: '*/5 * * * *',
   OPERATIONS_PRUNE_SCHEDULE: '0 3 * * *',
   HEALTH_HISTORY_RETENTION_DAYS: '30',
+  APP_URL: 'http://localhost:3000',
+  FRONTEND_URL: 'http://localhost:5173',
+  BETTER_AUTH_URL: 'http://localhost:3000',
+  BETTER_AUTH_SECRET: 'test-only-better-auth-secret-32-characters',
+  BETTER_AUTH_TRUSTED_ORIGINS: 'http://localhost:5173',
+  BETTER_AUTH_SESSION_EXPIRES_IN_SECONDS: '2592000',
+  BETTER_AUTH_SESSION_UPDATE_AGE_SECONDS: '86400',
+  BETTER_AUTH_VERIFICATION_EXPIRES_IN_SECONDS: '3600',
+  BETTER_AUTH_PASSWORD_RESET_EXPIRES_IN_SECONDS: '3600',
+  BETTER_AUTH_MIN_PASSWORD_LENGTH: '8',
+  BETTER_AUTH_MAX_PASSWORD_LENGTH: '128',
+  EMAIL_PROVIDER: 'fake',
+  RESEND_API_KEY: 're_test',
+  MAIL_FROM_ADDRESS: 'hello@example.com',
+  MAIL_FROM_NAME: 'Natours',
 };
 
 describe('validateEnvironment', () => {
@@ -95,6 +110,21 @@ describe('validateEnvironment', () => {
       HEALTH_SNAPSHOT_SCHEDULE: '*/5 * * * *',
       OPERATIONS_PRUNE_SCHEDULE: '0 3 * * *',
       HEALTH_HISTORY_RETENTION_DAYS: 30,
+      APP_URL: databaseEnvironment.APP_URL,
+      FRONTEND_URL: databaseEnvironment.FRONTEND_URL,
+      BETTER_AUTH_URL: databaseEnvironment.BETTER_AUTH_URL,
+      BETTER_AUTH_SECRET: databaseEnvironment.BETTER_AUTH_SECRET,
+      BETTER_AUTH_TRUSTED_ORIGINS: databaseEnvironment.BETTER_AUTH_TRUSTED_ORIGINS,
+      BETTER_AUTH_SESSION_EXPIRES_IN_SECONDS: 2592000,
+      BETTER_AUTH_SESSION_UPDATE_AGE_SECONDS: 86400,
+      BETTER_AUTH_VERIFICATION_EXPIRES_IN_SECONDS: 3600,
+      BETTER_AUTH_PASSWORD_RESET_EXPIRES_IN_SECONDS: 3600,
+      BETTER_AUTH_MIN_PASSWORD_LENGTH: 8,
+      BETTER_AUTH_MAX_PASSWORD_LENGTH: 128,
+      EMAIL_PROVIDER: 'fake',
+      RESEND_API_KEY: 're_test',
+      MAIL_FROM_ADDRESS: 'hello@example.com',
+      MAIL_FROM_NAME: 'Natours',
     });
   });
 
@@ -143,5 +173,36 @@ describe('validateEnvironment', () => {
     expect(() =>
       validateEnvironment({ ...databaseEnvironment, JOBS_QUEUE_NAME: 'invalid:name' }),
     ).toThrow('JOBS_QUEUE_NAME may contain letters, numbers, underscores, and hyphens');
+  });
+
+  it('requires the maximum password length to exceed the minimum', () => {
+    expect(() =>
+      validateEnvironment({
+        ...databaseEnvironment,
+        BETTER_AUTH_MIN_PASSWORD_LENGTH: '128',
+        BETTER_AUTH_MAX_PASSWORD_LENGTH: '128',
+      }),
+    ).toThrow('Maximum password length must exceed minimum password length');
+  });
+
+  it('requires a Resend key whenever the Resend provider is selected', () => {
+    expect(() =>
+      validateEnvironment({
+        ...databaseEnvironment,
+        EMAIL_PROVIDER: 'resend',
+        RESEND_API_KEY: '',
+      }),
+    ).toThrow('RESEND_API_KEY is required when EMAIL_PROVIDER is resend');
+  });
+
+  it('requires the Resend provider in production', () => {
+    expect(() =>
+      validateEnvironment({
+        ...databaseEnvironment,
+        NODE_ENV: APP_ENVIRONMENT.production,
+        CORS_ORIGINS: 'https://example.com',
+        EMAIL_PROVIDER: 'fake',
+      }),
+    ).toThrow('EMAIL_PROVIDER must be resend in production');
   });
 });

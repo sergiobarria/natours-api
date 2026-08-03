@@ -1,6 +1,7 @@
 # Nestjs specific
 /dist
 /node_modules
+/.pnpm-store
 /build
 /coverage
 /tmp

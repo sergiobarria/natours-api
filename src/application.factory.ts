@@ -12,7 +12,7 @@ export interface ApplicationFactoryOptions {
 export async function createApplication(
   options: ApplicationFactoryOptions = {},
 ): Promise<INestApplication> {
-  const app = await NestFactory.create(AppModule, { bufferLogs: true });
+  const app = await NestFactory.create(AppModule, { bodyParser: false, bufferLogs: true });
   const config = app.get(AppConfigService);
 
   app.useLogger(app.get(Logger));

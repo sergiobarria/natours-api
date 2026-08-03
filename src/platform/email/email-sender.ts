@@ -1,6 +1,7 @@
 export const EMAIL_SENDER = Symbol('EMAIL_SENDER');
 
 export interface EmailMessage {
+  html?: string;
   idempotencyKey: string;
   recipient: string;
   subject: string;

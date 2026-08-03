@@ -8,6 +8,7 @@ export const AUDIT_ACTION = {
   guideTeamReplaced: 'tour.guide_team_replaced',
   departureChanged: 'departure.changed',
   administrativeMediaChanged: 'media.administrative_changed',
+  profileChanged: 'user.profile_changed',
 } as const;
 
 export type AuditAction = (typeof AUDIT_ACTION)[keyof typeof AUDIT_ACTION];

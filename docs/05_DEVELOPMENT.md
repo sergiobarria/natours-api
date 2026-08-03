@@ -14,7 +14,9 @@ cp .env.example .env
 
 Environment variables are parsed by Zod during bootstrap. Invalid ports, log levels, environments,
 database URLs, pool bounds, Redis settings, queue policies, or missing production CORS origins stop
-startup with a useful error. Better Auth, Stripe, storage, and live Resend delivery remain future
+startup with a useful error. Better Auth and queued Resend delivery are current capabilities;
+configure `EMAIL_PROVIDER=resend` with a valid `RESEND_API_KEY` in production, while local and CI
+use the fake provider and non-production Better Auth secrets. Stripe and storage remain future
 capabilities.
 
 Create dedicated `natours_dev` and `natours_test` PostgreSQL databases when using DBngin. The
@@ -99,3 +101,15 @@ Destructive database commands only accept names configured through
 accepted. Production always remains protected.
 
 Better Auth schema generation is an input to the reviewed Drizzle schema, not an alternative migration system. The persistence feature must also convert the package to native ESM and keep unit/e2e tooling compatible with ESM dependencies.
+
+Identity development uses Better Auth's native routes at `/api/v1/auth`. Nest starts with its
+automatic body parser disabled so the auth handler sees the request stream first; the Nest bridge
+then restores bounded JSON and URL-encoded parsing and preserves `req.rawBody` for future signed
+webhooks. Use `EMAIL_PROVIDER=fake` locally unless a Resend test key and verified sender are
+available. Never use a production Better Auth secret in local or CI configuration.
+
+The reviewed identity dependency set is `better-auth@1.6.25`,
+`@better-auth/drizzle-adapter@1.6.25`, `@thallesp/nestjs-better-auth@2.7.0`, and
+`resend@6.18.1`. Application code consumes the integration only through the principal/session
+interfaces and Nest injection boundary. Native auth payloads remain separate from domain
+envelopes; `/users/*` endpoints use the ordinary validated and enveloped Nest contract.
