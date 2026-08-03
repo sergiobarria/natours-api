@@ -25,6 +25,7 @@ describe('processTourImage', () => {
   );
 
   it('rejects spoofed and oversized content', async () => {
+    await expect(processTourImage(Buffer.alloc(0))).rejects.toThrow(/contain data/);
     await expect(processTourImage(Buffer.from('not an image'))).rejects.toThrow(/decoded/);
     await expect(processTourImage(Buffer.alloc(MAX_MEDIA_FILE_SIZE + 1))).rejects.toThrow(/10 MB/);
   });

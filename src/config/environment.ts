@@ -88,7 +88,7 @@ const rawEnvironmentSchema = z
     [ENVIRONMENT_VARIABLES.r2AccessKeyId]: z.string().default(''),
     [ENVIRONMENT_VARIABLES.r2SecretAccessKey]: z.string().default(''),
     [ENVIRONMENT_VARIABLES.r2Bucket]: z.string().default(''),
-    [ENVIRONMENT_VARIABLES.r2Endpoint]: z.string().default(''),
+    [ENVIRONMENT_VARIABLES.r2Endpoint]: z.union([z.literal(''), originSchema]).default(''),
     [ENVIRONMENT_VARIABLES.r2PublicUrl]: originSchema.default('http://localhost:3000/media'),
     [ENVIRONMENT_VARIABLES.r2Region]: z.string().trim().min(1).default('auto'),
   })
@@ -128,7 +128,7 @@ const rawEnvironmentSchema = z
           context.addIssue({
             code: 'custom',
             path: [key],
-            message: `${key} is required for s3 storage`,
+            message: `${key} is required when OBJECT_STORAGE_PROVIDER is r2`,
           });
         }
       }

@@ -436,6 +436,14 @@ describe('application foundation (e2e)', () => {
       .post(`/api/v1/tours/${body.data.id}/images`)
       .attach('images', imageBuffer, { filename: 'cover.png', contentType: 'image/png' })
       .expect(401);
+    await request(httpServer)
+      .post(`/api/v1/tours/${body.data.id}/images`)
+      .set('authorization', `Bearer ${authenticatedToken}`)
+      .attach('images', Buffer.from('not an image'), {
+        filename: 'invalid.txt',
+        contentType: 'text/plain',
+      })
+      .expect(400);
     const upload = await request(httpServer)
       .post(`/api/v1/tours/${body.data.id}/images`)
       .set('authorization', `Bearer ${authenticatedToken}`)

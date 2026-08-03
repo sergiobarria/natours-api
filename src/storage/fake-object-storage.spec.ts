@@ -16,4 +16,11 @@ describe('FakeObjectStorage', () => {
     storage.failPutAt = 1;
     await expect(storage.put('key', Buffer.alloc(1), 'image/webp')).rejects.toThrow(/upload/);
   });
+
+  it('can fail deterministic delete calls', async () => {
+    const storage = new FakeObjectStorage();
+    storage.failDeleteAt = 1;
+
+    await expect(storage.delete('key')).rejects.toThrow(/delete/);
+  });
 });

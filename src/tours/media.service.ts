@@ -53,9 +53,10 @@ export class MediaService {
     if (files.length === 0 || files.length > MAX_FILES) {
       throw new BadRequestException('Upload between one and ten images.');
     }
-    const processed = await Promise.all(
-      files.map(async file => ({ id: randomUUID(), ...(await processTourImage(file.buffer)) })),
-    );
+    const processed: IdentifiedImage[] = [];
+    for (const file of files) {
+      processed.push({ id: randomUUID(), ...(await processTourImage(file.buffer)) });
+    }
     const reserved = await this.reserve(tourId, processed);
     const uploaded: string[] = [];
     try {
@@ -71,13 +72,30 @@ export class MediaService {
       }
     } catch (error) {
       const compensated = await this.compensate(uploaded, requestId);
-      if (compensated)
-        await this.removePendingUploads(
-          tourId,
-          reserved.map(row => row.id),
-        );
+      let reservationsRemoved = false;
+      if (compensated) {
+        try {
+          await this.removePendingUploads(
+            tourId,
+            reserved.map(row => row.id),
+          );
+          reservationsRemoved = true;
+        } catch (cleanupError) {
+          this.logger.error(
+            { error: errorMessage(cleanupError), requestId, tourId },
+            'Pending upload metadata cleanup failed',
+          );
+        }
+      }
       this.logger.error(
-        { error: errorMessage(error), requestId, tourId, uploaded, compensated },
+        {
+          error: errorMessage(error),
+          requestId,
+          tourId,
+          uploaded,
+          compensated,
+          reservationsRemoved,
+        },
         'Media upload failed',
       );
       throw new ServiceUnavailableException('Media storage operation failed.');
@@ -157,11 +175,15 @@ export class MediaService {
     });
   }
 
-  async deleteAllForTour(actorId: string, tourId: string, requestId?: string): Promise<void> {
-    const rows = await this.database
+  async deleteAllForTour(
+    transaction: DatabaseTransaction,
+    actorId: string,
+    tourId: string,
+    requestId?: string,
+  ): Promise<void> {
+    const rows = await transaction
       .select({
         id: tourMedia.id,
-        state: tourMedia.state,
         keyPrefix: tourMedia.keyPrefix,
         originalFormat: tourMedia.originalFormat,
       })
@@ -169,22 +191,27 @@ export class MediaService {
       .where(eq(tourMedia.tourId, tourId))
       .orderBy(asc(tourMedia.position), asc(tourMedia.id));
     for (const row of rows) {
-      if (row.state === 'pending_upload') {
-        try {
-          for (const key of Object.values(objectKeys(row.keyPrefix, row.originalFormat))) {
-            await this.storage.delete(key);
-          }
-          await this.removePendingUploads(tourId, [row.id]);
-        } catch (error) {
-          this.logger.error(
-            { error: errorMessage(error), imageId: row.id, requestId, tourId },
-            'Pending upload cleanup blocked tour deletion',
-          );
-          throw new ServiceUnavailableException('Tour media cleanup failed.');
+      try {
+        for (const key of Object.values(objectKeys(row.keyPrefix, row.originalFormat))) {
+          await this.storage.delete(key);
         }
-      } else {
-        await this.delete(actorId, tourId, row.id, requestId);
+      } catch (error) {
+        this.logger.error(
+          { error: errorMessage(error), imageId: row.id, requestId, tourId },
+          'Media cleanup blocked tour deletion',
+        );
+        throw new ServiceUnavailableException('Tour media cleanup failed.');
       }
+      await transaction.delete(tourMedia).where(eq(tourMedia.id, row.id));
+      await this.audit.record(transaction, {
+        action: 'tour.media_changed',
+        actor: { type: 'user', userId: actorId },
+        after: { status: 'deleted' },
+        eventKey: randomUUID(),
+        requestId,
+        targetId: row.id,
+        targetType: 'tour_media',
+      });
     }
   }
 

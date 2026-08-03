@@ -1,6 +1,6 @@
 import 'dotenv/config';
 import { DeleteObjectCommand, HeadObjectCommand, S3Client } from '@aws-sdk/client-s3';
-import { and, asc, eq, inArray } from 'drizzle-orm';
+import { and, asc, eq, inArray, lt } from 'drizzle-orm';
 import { createStandaloneDatabase } from '../database/database-command.js';
 import { tourMedia } from '../../src/database/schema/tours.js';
 
@@ -15,10 +15,16 @@ async function main(): Promise<void> {
   assertCleanupAllowed(process.env.NODE_ENV, execute);
   const connection = createStandaloneDatabase();
   try {
+    const cutoff = new Date(Date.now() - 15 * 60 * 1000);
     const pending = await connection.database
       .select()
       .from(tourMedia)
-      .where(inArray(tourMedia.state, ['pending_upload', 'pending_delete']));
+      .where(
+        and(
+          inArray(tourMedia.state, ['pending_upload', 'pending_delete']),
+          lt(tourMedia.updatedAt, cutoff),
+        ),
+      );
     console.info(
       JSON.stringify(
         {
@@ -53,38 +59,56 @@ async function main(): Promise<void> {
         secretAccessKey: process.env.R2_SECRET_ACCESS_KEY!,
       },
     });
-    const affectedTours = new Set<string>();
-    for (const row of pending) {
-      const extension = row.originalFormat === 'jpeg' ? 'jpg' : row.originalFormat;
-      for (const key of [
-        `${row.keyPrefix}/original.${extension}`,
-        `${row.keyPrefix}/card.webp`,
-        `${row.keyPrefix}/thumbnail.webp`,
-      ]) {
-        await client.send(new DeleteObjectCommand({ Bucket: process.env.R2_BUCKET!, Key: key }));
-        await assertObjectMissing(client, process.env.R2_BUCKET!, key);
-      }
-      await connection.database.delete(tourMedia).where(eq(tourMedia.id, row.id));
-      affectedTours.add(row.tourId);
-      console.info(JSON.stringify({ cleaned: row.id }));
-    }
-    for (const tourId of affectedTours) {
-      const rows = await connection.database
-        .select({ id: tourMedia.id, position: tourMedia.position })
+    await connection.database.transaction(async transaction => {
+      const locked = await transaction
+        .select()
         .from(tourMedia)
         .where(
-          and(eq(tourMedia.tourId, tourId), inArray(tourMedia.state, ['active', 'pending_upload'])),
+          and(
+            inArray(
+              tourMedia.id,
+              pending.map(row => row.id),
+            ),
+            lt(tourMedia.updatedAt, cutoff),
+          ),
         )
-        .orderBy(asc(tourMedia.position));
-      for (const [index, row] of rows.entries()) {
-        if (row.position !== index + 1) {
-          await connection.database
-            .update(tourMedia)
-            .set({ position: index + 1, updatedAt: new Date() })
-            .where(eq(tourMedia.id, row.id));
+        .for('update', { skipLocked: true });
+      const affectedTours = new Set<string>();
+      for (const row of locked) {
+        const extension = row.originalFormat === 'jpeg' ? 'jpg' : row.originalFormat;
+        for (const key of [
+          `${row.keyPrefix}/original.${extension}`,
+          `${row.keyPrefix}/card.webp`,
+          `${row.keyPrefix}/thumbnail.webp`,
+        ]) {
+          await client.send(new DeleteObjectCommand({ Bucket: process.env.R2_BUCKET!, Key: key }));
+          await assertObjectMissing(client, process.env.R2_BUCKET!, key);
+        }
+        await transaction.delete(tourMedia).where(eq(tourMedia.id, row.id));
+        affectedTours.add(row.tourId);
+        console.info(JSON.stringify({ cleaned: row.id }));
+      }
+      for (const tourId of affectedTours) {
+        const rows = await transaction
+          .select({ id: tourMedia.id, position: tourMedia.position })
+          .from(tourMedia)
+          .where(
+            and(
+              eq(tourMedia.tourId, tourId),
+              inArray(tourMedia.state, ['active', 'pending_upload']),
+            ),
+          )
+          .orderBy(asc(tourMedia.position));
+        for (const [index, row] of rows.entries()) {
+          if (row.position !== index + 1) {
+            await transaction
+              .update(tourMedia)
+              .set({ position: index + 1, updatedAt: new Date() })
+              .where(eq(tourMedia.id, row.id));
+          }
         }
       }
-    }
+    });
   } finally {
     await connection.pool.end();
   }

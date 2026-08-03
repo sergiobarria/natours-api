@@ -171,14 +171,10 @@ export class ToursService {
   }
 
   async delete(actorId: string, tourId: string, requestId?: string): Promise<void> {
-    await this.unitOfWork.transaction(async transaction => {
-      await this.lockTour(transaction, tourId);
-      await this.requireNoReservedDepartures(transaction, tourId);
-    });
-    await this.media.deleteAllForTour(actorId, tourId, requestId);
     return this.unitOfWork.transaction(async transaction => {
       const existing = await this.lockTour(transaction, tourId);
       await this.requireNoReservedDepartures(transaction, tourId);
+      await this.media.deleteAllForTour(transaction, actorId, tourId, requestId);
       const deletedAt = new Date();
       await transaction
         .update(tours)

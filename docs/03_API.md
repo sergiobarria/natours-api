@@ -101,8 +101,9 @@ GET /api/v1/tours?search=forest&minDuration=3&maxDuration=10
 ```
 
 Unsupported parameters and malformed values return `400`. Pagination links retain the validated
-query. Every tour sort appends the UUID as a stable tie-breaker. Departures and their query options
-are added by F-05 when that resource exists.
+query. Every tour sort appends the UUID as a stable tie-breaker. Departure reads use the documented
+nested `/tours/{tourId}/start-dates` route and chronological ordering rather than tour-list query
+options.
 
 ## Endpoint groups
 

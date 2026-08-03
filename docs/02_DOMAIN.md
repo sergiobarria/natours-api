@@ -20,9 +20,8 @@ Difficulty is `easy`, `moderate`, or `difficult`. Names need not be unique. Slug
 
 Every tour has one lead guide and zero through four unique supporting guides. The lead has the sole `lead-guide` role; supporters have the sole `guide` role; the lead cannot also support the same tour. Public tour resources expose guide IDs and names but never email addresses.
 
-`durationWeeks` is days divided by seven, rounded to one decimal. F-05 adds chronological upcoming
-departure dates when departures are implemented; the tour catalog does not expose placeholder
-departure data before then.
+`durationWeeks` is days divided by seven, rounded to one decimal. Public tour detail includes
+chronological upcoming departures; the catalog list remains compact and does not embed schedules.
 
 Soft deletion preserves related records for history. Active guide assignments are ended when a tour
 is deleted so they do not permanently block user-role changes. Restoration is not implemented.

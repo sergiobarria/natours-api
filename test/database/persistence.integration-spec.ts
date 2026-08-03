@@ -113,7 +113,9 @@ describe('PostgreSQL persistence infrastructure', () => {
         startAt,
         availableSpots: 1,
       }),
-    ).rejects.toThrow();
+    ).rejects.toMatchObject({
+      cause: { constraint: 'tour_departures_tour_id_start_at_unique' },
+    });
     await expect(
       testDatabase.database.insert(tourDepartures).values({
         id: randomUUID(),
@@ -121,7 +123,9 @@ describe('PostgreSQL persistence infrastructure', () => {
         startAt: new Date(startAt.getTime() + 1),
         availableSpots: -1,
       }),
-    ).rejects.toThrow();
+    ).rejects.toMatchObject({
+      cause: { constraint: 'tour_departures_available_spots_check' },
+    });
 
     const media = {
       tourId,
@@ -140,7 +144,7 @@ describe('PostgreSQL persistence infrastructure', () => {
         ...media,
         keyPrefix: `${media.keyPrefix}-two`,
       }),
-    ).rejects.toThrow();
+    ).rejects.toMatchObject({ cause: { constraint: 'tour_media_tour_id_position_unique' } });
   });
 
   it('uses UUID v4, timezone-aware timestamps, integer money, and soft deletion', async () => {
