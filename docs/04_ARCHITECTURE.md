@@ -4,6 +4,11 @@
 
 The target Natours application is a native ESM, modular NestJS TypeScript application. Bootstrap installs native URI versioning below `/api/v1`, Helmet, an environment-driven CORS allowlist, strict global validation, non-production Scalar documentation backed by Nest-generated OpenAPI, structured request logging, and graceful shutdown. `GET /health` is deliberately version-neutral.
 
+Product behavior is authoritative, but framework conventions inherited from an earlier Laravel
+design are not. Prefer standard Nest controllers, typed DTOs, guards, and concrete services. Add an
+interface, provider boundary, custom query grammar, or future-facing abstraction only when a current
+requirement or a second implementation makes its value concrete.
+
 The implemented foundation contains the root module, typed configuration, logging, and `HealthModule`. Organize future capabilities as focused NestJS modules such as `AuthModule`, `UsersModule`, `ToursModule`, `BookingsModule`, and `ReviewsModule`.
 
 - **Controllers** own transport details and response mapping.

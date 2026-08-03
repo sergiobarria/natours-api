@@ -11,6 +11,7 @@ import { AuditModule } from './audit/audit.module.js';
 import { RateLimitModule } from './rate-limit/rate-limit.module.js';
 import { IdentityModule } from './identity/identity.module.js';
 import { UsersModule } from './users/users.module.js';
+import { ToursModule } from './tours/tours.module.js';
 
 @Module({
   imports: [
@@ -21,6 +22,7 @@ import { UsersModule } from './users/users.module.js';
     RateLimitModule,
     IdentityModule,
     UsersModule,
+    ToursModule,
     LoggerModule.forRootAsync({
       imports: [AppConfigModule],
       inject: [AppConfigService],

@@ -55,6 +55,7 @@
     "@nestjs/terminus": "^11.1.1",
     "@nestjs/throttler": "6.5.0",
     "@scalar/nestjs-api-reference": "^1.2.12",
+    "@sindresorhus/slugify": "3.0.0",
     "@thallesp/nestjs-better-auth": "2.7.0",
     "better-auth": "1.6.25",
     "bullmq": "6.0.5",

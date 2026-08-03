@@ -48,6 +48,79 @@
         "required": ["currentPassword"],
         "type": "object"
       },
+      "CreateTourDto": {
+        "properties": {
+          "description": {
+            "maxLength": 10000,
+            "nullable": true,
+            "type": "string"
+          },
+          "difficulty": {
+            "enum": ["easy", "moderate", "difficult"],
+            "type": "string"
+          },
+          "discountPercentage": {
+            "maximum": 99.99,
+            "minimum": 0.01,
+            "nullable": true,
+            "type": "number"
+          },
+          "durationDays": { "maximum": 3650, "minimum": 1, "type": "number" },
+          "guideIds": {
+            "items": { "format": "uuid", "type": "string" },
+            "maxItems": 4,
+            "type": "array"
+          },
+          "isActive": { "default": false, "type": "boolean" },
+          "leadGuideId": { "format": "uuid", "type": "string" },
+          "maximumGroupSize": {
+            "maximum": 10000,
+            "minimum": 1,
+            "type": "number"
+          },
+          "name": { "maxLength": 160, "type": "string" },
+          "price": {
+            "description": "Price in USD cents.",
+            "minimum": 0,
+            "type": "number"
+          },
+          "startLocation": { "$ref": "#/components/schemas/TourLocationDto" },
+          "summary": { "maxLength": 500, "type": "string" }
+        },
+        "required": [
+          "name",
+          "summary",
+          "durationDays",
+          "maximumGroupSize",
+          "difficulty",
+          "price",
+          "startLocation",
+          "leadGuideId"
+        ],
+        "type": "object"
+      },
+      "ReplaceGuideTeamDto": {
+        "properties": {
+          "guideIds": {
+            "items": { "format": "uuid", "type": "string" },
+            "maxItems": 4,
+            "type": "array"
+          },
+          "leadGuideId": { "format": "uuid", "type": "string" }
+        },
+        "required": ["leadGuideId", "guideIds"],
+        "type": "object"
+      },
+      "TourLocationDto": {
+        "properties": {
+          "address": { "maxLength": 300, "nullable": true, "type": "string" },
+          "latitude": { "maximum": 90, "minimum": -90, "type": "number" },
+          "longitude": { "maximum": 180, "minimum": -180, "type": "number" },
+          "name": { "maxLength": 160, "type": "string" }
+        },
+        "required": ["name", "latitude", "longitude"],
+        "type": "object"
+      },
       "UpdateProfileDto": {
         "properties": { "name": { "maxLength": 100, "type": "string" } },
         "required": ["name"],
@@ -61,6 +134,41 @@
           }
         },
         "required": ["role"],
+        "type": "object"
+      },
+      "UpdateTourDto": {
+        "properties": {
+          "description": {
+            "maxLength": 10000,
+            "nullable": true,
+            "type": "string"
+          },
+          "difficulty": {
+            "enum": ["easy", "moderate", "difficult"],
+            "type": "string"
+          },
+          "discountPercentage": {
+            "maximum": 99.99,
+            "minimum": 0.01,
+            "nullable": true,
+            "type": "number"
+          },
+          "durationDays": { "maximum": 3650, "minimum": 1, "type": "number" },
+          "isActive": { "type": "boolean" },
+          "maximumGroupSize": {
+            "maximum": 10000,
+            "minimum": 1,
+            "type": "number"
+          },
+          "name": { "maxLength": 160, "type": "string" },
+          "price": {
+            "description": "Price in USD cents.",
+            "minimum": 0,
+            "type": "number"
+          },
+          "startLocation": { "$ref": "#/components/schemas/TourLocationDto" },
+          "summary": { "maxLength": 500, "type": "string" }
+        },
         "type": "object"
       }
     },
@@ -140,6 +248,23 @@
         },
         "summary": "Describe the API",
         "tags": ["application"]
+      }
+    },
+    "/api/v1/admin/tours/{tourId}": {
+      "get": {
+        "operationId": "OperatorToursController_detail_v1",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "tourId",
+            "required": true,
+            "schema": { "format": "uuid" }
+          }
+        ],
+        "responses": { "200": { "description": "" } },
+        "security": [{ "bearerAuth": [] }],
+        "summary": "Get operator tour detail",
+        "tags": ["tours"]
       }
     },
     "/api/v1/auth/get-session": {
@@ -288,6 +413,198 @@
         },
         "summary": "Verify an email token",
         "tags": ["native-authentication"]
+      }
+    },
+    "/api/v1/tours": {
+      "get": {
+        "operationId": "ToursController_list_v1",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "search",
+            "required": false,
+            "schema": { "maxLength": 160, "type": "string" }
+          },
+          {
+            "in": "query",
+            "name": "difficulty",
+            "required": false,
+            "schema": { "type": "string" }
+          },
+          {
+            "in": "query",
+            "name": "minPrice",
+            "required": false,
+            "schema": { "minimum": 0, "type": "number" }
+          },
+          {
+            "in": "query",
+            "name": "maxPrice",
+            "required": false,
+            "schema": { "minimum": 0, "type": "number" }
+          },
+          {
+            "in": "query",
+            "name": "minDuration",
+            "required": false,
+            "schema": { "minimum": 1, "type": "number" }
+          },
+          {
+            "in": "query",
+            "name": "maxDuration",
+            "required": false,
+            "schema": { "minimum": 1, "type": "number" }
+          },
+          {
+            "in": "query",
+            "name": "minGroupSize",
+            "required": false,
+            "schema": { "minimum": 1, "type": "number" }
+          },
+          {
+            "in": "query",
+            "name": "maxGroupSize",
+            "required": false,
+            "schema": { "minimum": 1, "type": "number" }
+          },
+          {
+            "in": "query",
+            "name": "minRating",
+            "required": false,
+            "schema": { "maximum": 5, "minimum": 1, "type": "number" }
+          },
+          {
+            "in": "query",
+            "name": "maxRating",
+            "required": false,
+            "schema": { "maximum": 5, "minimum": 1, "type": "number" }
+          },
+          {
+            "in": "query",
+            "name": "sortBy",
+            "required": false,
+            "schema": { "default": "name", "type": "string" }
+          },
+          {
+            "in": "query",
+            "name": "sortOrder",
+            "required": false,
+            "schema": { "default": "asc", "type": "string" }
+          },
+          {
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": { "default": 1, "minimum": 1, "type": "number" }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 20,
+              "maximum": 100,
+              "minimum": 1,
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": { "description": "Active public tour catalog." }
+        },
+        "tags": ["tours"]
+      },
+      "post": {
+        "operationId": "ToursController_create_v1",
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/CreateTourDto" }
+            }
+          },
+          "required": true
+        },
+        "responses": { "201": { "description": "Tour created." } },
+        "security": [{ "bearerAuth": [] }],
+        "tags": ["tours"]
+      }
+    },
+    "/api/v1/tours/{slug}": {
+      "get": {
+        "operationId": "ToursController_detail_v1",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "slug",
+            "required": true,
+            "schema": { "type": "string" }
+          }
+        ],
+        "responses": { "200": { "description": "Active public tour detail." } },
+        "tags": ["tours"]
+      }
+    },
+    "/api/v1/tours/{tourId}": {
+      "delete": {
+        "operationId": "ToursController_delete_v1",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "tourId",
+            "required": true,
+            "schema": { "format": "uuid" }
+          }
+        ],
+        "responses": { "204": { "description": "Tour soft deleted." } },
+        "security": [{ "bearerAuth": [] }],
+        "tags": ["tours"]
+      },
+      "patch": {
+        "operationId": "ToursController_update_v1",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "tourId",
+            "required": true,
+            "schema": { "format": "uuid" }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/UpdateTourDto" }
+            }
+          },
+          "required": true
+        },
+        "responses": { "200": { "description": "" } },
+        "security": [{ "bearerAuth": [] }],
+        "tags": ["tours"]
+      }
+    },
+    "/api/v1/tours/{tourId}/guide-team": {
+      "put": {
+        "operationId": "ToursController_replaceTeam_v1",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "tourId",
+            "required": true,
+            "schema": { "format": "uuid" }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/ReplaceGuideTeamDto" }
+            }
+          },
+          "required": true
+        },
+        "responses": { "200": { "description": "" } },
+        "security": [{ "bearerAuth": [] }],
+        "tags": ["tours"]
       }
     },
     "/api/v1/users": {

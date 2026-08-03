@@ -21,13 +21,13 @@ describe('response presenters', () => {
         pagination: { page: 2, perPage: 20, totalItems: 74, totalPages: 4 },
       },
       links: {
-        self: '/api/v1/tours?filter%5Bdifficulty%5D=moderate&sort=price%2C-rating_avg&page=2&per_page=20',
+        self: '/api/v1/tours?filter%5Bdifficulty%5D=moderate&sort=price%2C-rating_avg&page=2&limit=20',
         first:
-          '/api/v1/tours?filter%5Bdifficulty%5D=moderate&sort=price%2C-rating_avg&page=1&per_page=20',
-        last: '/api/v1/tours?filter%5Bdifficulty%5D=moderate&sort=price%2C-rating_avg&page=4&per_page=20',
+          '/api/v1/tours?filter%5Bdifficulty%5D=moderate&sort=price%2C-rating_avg&page=1&limit=20',
+        last: '/api/v1/tours?filter%5Bdifficulty%5D=moderate&sort=price%2C-rating_avg&page=4&limit=20',
         previous:
-          '/api/v1/tours?filter%5Bdifficulty%5D=moderate&sort=price%2C-rating_avg&page=1&per_page=20',
-        next: '/api/v1/tours?filter%5Bdifficulty%5D=moderate&sort=price%2C-rating_avg&page=3&per_page=20',
+          '/api/v1/tours?filter%5Bdifficulty%5D=moderate&sort=price%2C-rating_avg&page=1&limit=20',
+        next: '/api/v1/tours?filter%5Bdifficulty%5D=moderate&sort=price%2C-rating_avg&page=3&limit=20',
       },
     });
   });
@@ -41,7 +41,7 @@ describe('response presenters', () => {
     });
 
     expect(response.meta.pagination.totalPages).toBe(0);
-    expect(response.links.last).toBe('/api/v1/tours?page=1&per_page=20');
+    expect(response.links.last).toBe('/api/v1/tours?page=1&limit=20');
     expect(response.links.previous).toBeNull();
     expect(response.links.next).toBeNull();
   });

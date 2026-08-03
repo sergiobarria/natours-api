@@ -3,6 +3,8 @@ export const AUDIT_ACTION = {
   roleChanged: 'user.role_changed',
   accountSecurityChanged: 'account.security_changed',
   profileChanged: 'user.profile_changed',
+  tourChanged: 'tour.changed',
+  tourGuideTeamReplaced: 'tour.guide_team_replaced',
 } as const;
 
 export type AuditAction = (typeof AUDIT_ACTION)[keyof typeof AUDIT_ACTION];
