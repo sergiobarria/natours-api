@@ -1,14 +1,16 @@
 import { Module } from '@nestjs/common';
 import { LoggerModule } from 'nestjs-pino';
-import { AppController } from './app.controller';
-import { AppConfigService } from './config/app-config.service';
-import { AppConfigModule } from './config/config.module';
-import { HealthModule } from './health/health.module';
-import { createLoggerOptions } from './logging/logger.config';
+import { AppController } from './app.controller.js';
+import { AppConfigService } from './config/app-config.service.js';
+import { AppConfigModule } from './config/config.module.js';
+import { DatabaseModule } from './database/database.module.js';
+import { HealthModule } from './health/health.module.js';
+import { createLoggerOptions } from './logging/logger.config.js';
 
 @Module({
   imports: [
     AppConfigModule,
+    DatabaseModule,
     LoggerModule.forRootAsync({
       imports: [AppConfigModule],
       inject: [AppConfigService],

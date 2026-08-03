@@ -1,18 +1,29 @@
 import { INestApplication, ValidationPipe, VersioningType } from '@nestjs/common';
-import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import { Reflector } from '@nestjs/core';
 import helmet from 'helmet';
-import { AppConfigService } from './config/app-config.service';
-import { Environment } from './config/environment';
+import { AppConfigService } from './config/app-config.service.js';
+import { APP_ENVIRONMENT } from './config/config.constants.js';
+import { Environment } from './config/environment.js';
+import { ApiExceptionFilter } from './http/errors/api-exception.filter.js';
+import { createValidationError } from './http/errors/validation-error.factory.js';
+import { API_CONTRACT, HTTP_ROUTES } from './http/http.constants.js';
+import { ResponseEnvelopeInterceptor } from './http/response/response-envelope.interceptor.js';
+import { createOpenApiDocument, registerOpenApiDocumentation } from './openapi/openapi.js';
 
-export const API_PREFIX = 'api';
-export const API_VERSION = '1';
+export const API_PREFIX = HTTP_ROUTES.apiPrefix;
+export const API_VERSION = API_CONTRACT.version;
+
+export interface ApplicationConfigurationOptions {
+  registerDocumentation?: boolean;
+}
 
 export async function configureApplication(
   app: INestApplication,
   config: AppConfigService,
+  options: ApplicationConfigurationOptions = {},
 ): Promise<void> {
   app.setGlobalPrefix(API_PREFIX, {
-    exclude: ['health'],
+    exclude: [HTTP_ROUTES.health],
   });
 
   app.enableVersioning({
@@ -36,37 +47,19 @@ export async function configureApplication(
       transform: true,
       whitelist: true,
       forbidNonWhitelisted: true,
+      exceptionFactory: errors => createValidationError(errors),
     }),
   );
+  app.useGlobalInterceptors(new ResponseEnvelopeInterceptor(app.get(Reflector)));
+  app.useGlobalFilters(new ApiExceptionFilter());
 
   app.enableShutdownHooks();
 
-  if (isApiDocsEnabled(config.environment)) {
-    const { apiReference } = await import('@scalar/nestjs-api-reference');
-    const openApiConfig = new DocumentBuilder()
-      .setTitle('Natours API')
-      .setDescription('HTTP API for the Natours application')
-      .setVersion(API_VERSION)
-      .build();
-    const document = SwaggerModule.createDocument(app, openApiConfig, {
-      ignoreGlobalPrefix: false,
-    });
-
-    SwaggerModule.setup('docs', app, document, {
-      ui: false,
-      jsonDocumentUrl: 'docs-json',
-    });
-
-    app.use(
-      '/docs',
-      apiReference({
-        content: document,
-        pageTitle: 'Natours API Reference',
-      }),
-    );
+  if (options.registerDocumentation !== false && isApiDocsEnabled(config.environment)) {
+    await registerOpenApiDocumentation(app, createOpenApiDocument(app));
   }
 }
 
 export function isApiDocsEnabled(environment: Environment['NODE_ENV']): boolean {
-  return environment !== 'production';
+  return environment !== APP_ENVIRONMENT.production;
 }

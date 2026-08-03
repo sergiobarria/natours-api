@@ -4,6 +4,7 @@
 /build
 /coverage
 /tmp
+*.tsbuildinfo
 .DS_Store
 
 # Logs

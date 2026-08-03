@@ -1,0 +1,82 @@
+{
+  "components": { "schemas": {} },
+  "info": {
+    "contact": {},
+    "description": "HTTP API for the Natours application",
+    "title": "Natours API",
+    "version": "1"
+  },
+  "openapi": "3.0.0",
+  "paths": {
+    "/api/v1": {
+      "get": {
+        "operationId": "AppController_describe_v1",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "example": {
+                    "data": { "name": "natours-api", "version": "1" }
+                  },
+                  "properties": {
+                    "data": {
+                      "properties": {
+                        "name": { "example": "natours-api", "type": "string" },
+                        "version": { "example": "1", "type": "string" }
+                      },
+                      "required": ["name", "version"],
+                      "type": "object"
+                    }
+                  },
+                  "required": ["data"],
+                  "type": "object"
+                }
+              }
+            },
+            "description": ""
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "error": {
+                      "properties": {
+                        "code": {
+                          "example": "INTERNAL_SERVER_ERROR",
+                          "type": "string"
+                        },
+                        "details": { "nullable": true },
+                        "message": {
+                          "example": "An unexpected error occurred.",
+                          "type": "string"
+                        },
+                        "requestId": {
+                          "maxLength": 128,
+                          "minLength": 1,
+                          "pattern": "^[A-Za-z0-9._:-]{1,128}$",
+                          "type": "string"
+                        }
+                      },
+                      "required": ["code", "message", "requestId"],
+                      "type": "object"
+                    }
+                  },
+                  "required": ["error"],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Unexpected internal failure"
+          }
+        },
+        "summary": "Describe the API",
+        "tags": ["application"]
+      }
+    }
+  },
+  "servers": [],
+  "tags": []
+}

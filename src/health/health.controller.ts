@@ -1,11 +1,14 @@
-import { Controller, Get, VERSION_NEUTRAL, Version } from '@nestjs/common';
+import { Controller, Get, Inject, VERSION_NEUTRAL, Version } from '@nestjs/common';
 import { ApiExcludeController } from '@nestjs/swagger';
 import { HealthCheck, HealthCheckService } from '@nestjs/terminus';
+import { HTTP_ROUTES } from '../http/http.constants.js';
+import { NativeResponse } from '../http/response/native-response.decorator.js';
 
 @ApiExcludeController()
-@Controller('health')
+@NativeResponse()
+@Controller(HTTP_ROUTES.health)
 export class HealthController {
-  constructor(private readonly health: HealthCheckService) {}
+  constructor(@Inject(HealthCheckService) private readonly health: HealthCheckService) {}
 
   @Get()
   @Version(VERSION_NEUTRAL)
