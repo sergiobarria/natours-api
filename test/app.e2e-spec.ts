@@ -16,7 +16,7 @@ import { ApiExcludeController } from '@nestjs/swagger';
 import { Logger } from 'nestjs-pino';
 import request from 'supertest';
 import { Throttle } from '@nestjs/throttler';
-import { AllowAnonymous } from '@thallesp/nestjs-better-auth';
+import { PublicRoute } from '../src/identity/identity.decorators.js';
 import { AppModule } from '../src/app.module.js';
 import { configureApplication } from '../src/bootstrap.js';
 import { AppConfigService } from '../src/config/app-config.service.js';
@@ -58,7 +58,7 @@ class ContractQuery {
 }
 
 @ApiExcludeController()
-@AllowAnonymous()
+@PublicRoute()
 @Controller('contract-tests')
 class ContractTestController {
   @Get('rate-limit')
@@ -144,6 +144,10 @@ describe('application foundation (e2e)', () => {
   let app: INestApplication;
   let httpServer: Parameters<typeof request>[0];
   let database: Database;
+  let authenticatedEmail: string;
+  let authenticatedPassword: string;
+  let authenticatedToken: string;
+  let authenticatedUserId: string;
 
   beforeAll(async () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
@@ -173,6 +177,8 @@ describe('application foundation (e2e)', () => {
   it('completes registration, verification, Bearer login, session, and logout natively', async () => {
     const email = `auth-${Date.now()}@example.com`;
     const password = 'correct horse battery staple';
+    authenticatedEmail = email;
+    authenticatedPassword = password;
 
     const registration = await request(httpServer)
       .post('/api/v1/auth/sign-up/email')
@@ -182,6 +188,10 @@ describe('application foundation (e2e)', () => {
 
     const [created] = await database.select().from(users).where(eq(users.email, email));
     expect(created).toMatchObject({ email, emailVerified: false, role: 'user' });
+    if (!created) {
+      throw new Error('Expected the registered user to exist');
+    }
+    authenticatedUserId = created.id;
 
     const [verificationMessage] = await database
       .select()
@@ -222,6 +232,47 @@ describe('application foundation (e2e)', () => {
       .set('authorization', `Bearer ${String(token)}`)
       .expect(200)
       .expect(response => expect(response.body).toBeNull());
+
+    const secondLogin = await request(httpServer)
+      .post('/api/v1/auth/sign-in/email')
+      .send({ email, password })
+      .expect(200);
+    authenticatedToken = String(secondLogin.headers['set-auth-token']);
+  });
+
+  it('resolves an application principal and enforces user permissions and sensitive caching', async () => {
+    const profile = await request(httpServer)
+      .get('/api/v1/users/me')
+      .set('authorization', `Bearer ${authenticatedToken}`)
+      .expect(200);
+    expect(profile.body).toMatchObject({ data: { id: authenticatedUserId, role: 'user' } });
+    expect(profile.headers['cache-control']).toBe('no-store, private');
+    expect(profile.headers.pragma).toBe('no-cache');
+
+    await request(httpServer)
+      .patch('/api/v1/users/me')
+      .set('authorization', `Bearer ${authenticatedToken}`)
+      .send({ name: 'Updated Auth Test' })
+      .expect(200)
+      .expect(response =>
+        expect(response.body).toMatchObject({ data: { name: 'Updated Auth Test' } }),
+      );
+
+    await request(httpServer)
+      .get('/api/v1/users')
+      .set('authorization', `Bearer ${authenticatedToken}`)
+      .expect(403);
+
+    await database.update(users).set({ role: 'admin' }).where(eq(users.id, authenticatedUserId));
+    await request(httpServer)
+      .get('/api/v1/users')
+      .set('authorization', `Bearer ${authenticatedToken}`)
+      .expect(200);
+    await request(httpServer)
+      .patch(`/api/v1/users/${authenticatedUserId}/role`)
+      .set('authorization', `Bearer ${authenticatedToken}`)
+      .send({ role: 'user' })
+      .expect(403);
   });
 
   it('keeps password recovery account-enumeration safe and queues only durable email', async () => {
@@ -231,6 +282,48 @@ describe('application foundation (e2e)', () => {
       .send({ ...body, email: `missing-${Date.now()}@example.com` })
       .expect(200);
     expect(missing.body).not.toHaveProperty('data');
+  });
+
+  it('changes a password without leaking failures and revokes only other sessions', async () => {
+    await request(httpServer)
+      .post('/api/v1/users/me/change-password')
+      .set('authorization', `Bearer ${authenticatedToken}`)
+      .send({ currentPassword: 'incorrect password', newPassword: 'another secure password' })
+      .expect(400)
+      .expect(response => {
+        const body = response.body as { error: { message: string } };
+        expect(body.error.message).toBe('The account security change could not be completed.');
+      });
+
+    const otherLogin = await request(httpServer)
+      .post('/api/v1/auth/sign-in/email')
+      .send({ email: authenticatedEmail, password: authenticatedPassword })
+      .expect(200);
+    const otherToken = String(otherLogin.headers['set-auth-token']);
+    const newPassword = 'updated correct horse battery staple';
+
+    const changed = await request(httpServer)
+      .post('/api/v1/users/me/change-password')
+      .set('authorization', `Bearer ${authenticatedToken}`)
+      .send({ currentPassword: authenticatedPassword, newPassword })
+      .expect(204);
+    authenticatedToken = String(changed.headers['set-auth-token']);
+    expect(authenticatedToken).not.toBe('undefined');
+    authenticatedPassword = newPassword;
+
+    await request(httpServer)
+      .get('/api/v1/auth/get-session')
+      .set('authorization', `Bearer ${authenticatedToken}`)
+      .expect(200)
+      .expect(response => {
+        const body = response.body as { user?: { id?: string } };
+        expect(body.user?.id).toBe(authenticatedUserId);
+      });
+    await request(httpServer)
+      .get('/api/v1/auth/get-session')
+      .set('authorization', `Bearer ${otherToken}`)
+      .expect(200)
+      .expect(response => expect(response.body).toBeNull());
   });
 
   it('wraps collections and presents deterministic pagination links', async () => {

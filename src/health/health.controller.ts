@@ -1,14 +1,14 @@
 import { Controller, Get, Inject, VERSION_NEUTRAL, Version } from '@nestjs/common';
 import { ApiExcludeController } from '@nestjs/swagger';
 import { HealthCheck, HealthCheckService } from '@nestjs/terminus';
-import { AllowAnonymous } from '@thallesp/nestjs-better-auth';
+import { PublicRoute } from '../identity/identity.decorators.js';
 import { HTTP_ROUTES } from '../http/http.constants.js';
 import { NativeResponse } from '../http/response/native-response.decorator.js';
 import { BypassRateLimit } from '../rate-limit/rate-limit.decorators.js';
 import { ReadinessService } from './readiness.service.js';
 
 @ApiExcludeController()
-@AllowAnonymous()
+@PublicRoute()
 @NativeResponse()
 @Controller(HTTP_ROUTES.health)
 @BypassRateLimit()
@@ -24,7 +24,7 @@ export class HealthController {
 }
 
 @ApiExcludeController()
-@AllowAnonymous()
+@PublicRoute()
 @NativeResponse()
 @BypassRateLimit()
 @Controller(HTTP_ROUTES.ready)

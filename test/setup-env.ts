@@ -13,7 +13,7 @@ if (testDatabaseUrl !== undefined) {
 
 process.env[ENVIRONMENT_VARIABLES.logLevel] = 'silent';
 process.env[ENVIRONMENT_VARIABLES.redisUrl] ??= 'redis://localhost:6380';
-process.env[ENVIRONMENT_VARIABLES.redisKeyPrefix] ??= 'natours-test';
+process.env[ENVIRONMENT_VARIABLES.redisKeyPrefix] ??= `natours-test-${process.pid}`;
 process.env[ENVIRONMENT_VARIABLES.redisConnectTimeoutMs] ??= '1000';
 process.env[ENVIRONMENT_VARIABLES.redisCommandTimeoutMs] ??= '1000';
 process.env[ENVIRONMENT_VARIABLES.redisMaxRetriesPerRequest] ??= '1';

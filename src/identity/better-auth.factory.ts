@@ -43,7 +43,9 @@ export function createBetterAuth(
         emailOutbox.enqueue({
           expiresInSeconds: config.betterAuthVerificationExpiresInSeconds,
           recipient: user.email,
-          type: AUTH_EMAIL_TYPE.verification,
+          type: isEmailChangeVerification(url)
+            ? AUTH_EMAIL_TYPE.emailChange
+            : AUTH_EMAIL_TYPE.verification,
           url,
         }),
     },
@@ -71,3 +73,12 @@ export function createBetterAuth(
 }
 
 export type BetterAuthInstance = ReturnType<typeof createBetterAuth>;
+
+function isEmailChangeVerification(url: string): boolean {
+  try {
+    const callback = new URL(url).searchParams.get('callbackURL');
+    return callback === '/account' || callback?.endsWith('/account') === true;
+  } catch {
+    return false;
+  }
+}

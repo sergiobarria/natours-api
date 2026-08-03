@@ -1,6 +1,69 @@
 {
   "components": {
-    "schemas": {},
+    "schemas": {
+      "ChangeEmailDto": {
+        "properties": {
+          "currentPassword": {
+            "format": "password",
+            "maxLength": 128,
+            "minLength": 8,
+            "type": "string",
+            "writeOnly": true
+          },
+          "newEmail": { "format": "email", "type": "string" }
+        },
+        "required": ["currentPassword", "newEmail"],
+        "type": "object"
+      },
+      "ChangePasswordDto": {
+        "properties": {
+          "currentPassword": {
+            "format": "password",
+            "maxLength": 128,
+            "minLength": 8,
+            "type": "string",
+            "writeOnly": true
+          },
+          "newPassword": {
+            "format": "password",
+            "maxLength": 128,
+            "minLength": 8,
+            "type": "string",
+            "writeOnly": true
+          }
+        },
+        "required": ["currentPassword", "newPassword"],
+        "type": "object"
+      },
+      "ConfirmPasswordDto": {
+        "properties": {
+          "currentPassword": {
+            "format": "password",
+            "maxLength": 128,
+            "minLength": 8,
+            "type": "string",
+            "writeOnly": true
+          }
+        },
+        "required": ["currentPassword"],
+        "type": "object"
+      },
+      "UpdateProfileDto": {
+        "properties": { "name": { "maxLength": 100, "type": "string" } },
+        "required": ["name"],
+        "type": "object"
+      },
+      "UpdateRoleDto": {
+        "properties": {
+          "role": {
+            "enum": ["user", "guide", "lead-guide", "admin"],
+            "type": "string"
+          }
+        },
+        "required": ["role"],
+        "type": "object"
+      }
+    },
     "securitySchemes": { "bearerAuth": { "scheme": "bearer", "type": "http" } }
   },
   "info": {
@@ -225,6 +288,152 @@
         },
         "summary": "Verify an email token",
         "tags": ["native-authentication"]
+      }
+    },
+    "/api/v1/users": {
+      "get": {
+        "operationId": "UsersController_list_v1",
+        "parameters": [],
+        "responses": {
+          "200": { "description": "Users visible to an administrator." }
+        },
+        "security": [{ "bearer": [] }],
+        "tags": ["users"]
+      }
+    },
+    "/api/v1/users/{userId}": {
+      "delete": {
+        "operationId": "UsersController_delete_v1",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "userId",
+            "required": true,
+            "schema": { "format": "uuid" }
+          }
+        ],
+        "responses": { "204": { "description": "" } },
+        "security": [{ "bearer": [] }],
+        "tags": ["users"]
+      },
+      "get": {
+        "operationId": "UsersController_find_v1",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "userId",
+            "required": true,
+            "schema": { "format": "uuid" }
+          }
+        ],
+        "responses": { "200": { "description": "" } },
+        "security": [{ "bearer": [] }],
+        "tags": ["users"]
+      }
+    },
+    "/api/v1/users/{userId}/role": {
+      "patch": {
+        "operationId": "UsersController_changeRole_v1",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "userId",
+            "required": true,
+            "schema": { "format": "uuid" }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/UpdateRoleDto" }
+            }
+          },
+          "required": true
+        },
+        "responses": { "200": { "description": "" } },
+        "security": [{ "bearer": [] }],
+        "tags": ["users"]
+      }
+    },
+    "/api/v1/users/me": {
+      "delete": {
+        "operationId": "UsersController_deleteMe_v1",
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/ConfirmPasswordDto" }
+            }
+          },
+          "required": true
+        },
+        "responses": { "204": { "description": "Account deleted." } },
+        "security": [{ "bearer": [] }],
+        "tags": ["users"]
+      },
+      "get": {
+        "operationId": "UsersController_me_v1",
+        "parameters": [],
+        "responses": { "200": { "description": "" } },
+        "security": [{ "bearer": [] }],
+        "tags": ["users"]
+      },
+      "patch": {
+        "operationId": "UsersController_updateMe_v1",
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/UpdateProfileDto" }
+            }
+          },
+          "required": true
+        },
+        "responses": { "200": { "description": "" } },
+        "security": [{ "bearer": [] }],
+        "tags": ["users"]
+      }
+    },
+    "/api/v1/users/me/change-email": {
+      "post": {
+        "operationId": "UsersController_changeEmail_v1",
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/ChangeEmailDto" }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Email verification queued when a change is required."
+          }
+        },
+        "security": [{ "bearer": [] }],
+        "tags": ["users"]
+      }
+    },
+    "/api/v1/users/me/change-password": {
+      "post": {
+        "operationId": "UsersController_changePassword_v1",
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/ChangePasswordDto" }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Password changed; rotated token is in set-auth-token."
+          }
+        },
+        "security": [{ "bearer": [] }],
+        "tags": ["users"]
       }
     }
   },

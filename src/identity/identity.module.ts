@@ -6,6 +6,7 @@ import type { Database } from '../database/database.types.js';
 import { AuthEmailOutbox } from './auth-email-outbox.js';
 import { createBetterAuth } from './better-auth.factory.js';
 import { IdentityEmailModule } from './identity-email.module.js';
+import { IdentityApplicationModule } from './identity-application.module.js';
 
 @Module({
   imports: [
@@ -22,6 +23,9 @@ import { IdentityEmailModule } from './identity-email.module.js';
         },
       }),
     }),
+    // Application guards must run after the integration's global AuthGuard has
+    // attached the vendor session to the request.
+    IdentityApplicationModule,
   ],
   exports: [AuthModule],
 })

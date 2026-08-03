@@ -105,3 +105,9 @@ automatic body parser disabled so the auth handler sees the request stream first
 then restores bounded JSON and URL-encoded parsing and preserves `req.rawBody` for future signed
 webhooks. Use `EMAIL_PROVIDER=fake` locally unless a Resend test key and verified sender are
 available. Never use a production Better Auth secret in local or CI configuration.
+
+The reviewed identity dependency set is `better-auth@1.6.25`,
+`@better-auth/drizzle-adapter@1.6.25`, `@thallesp/nestjs-better-auth@2.7.0`, and
+`resend@6.18.1`. Application code consumes the integration only through the principal/session
+interfaces and Nest injection boundary. Native auth payloads remain separate from domain
+envelopes; `/users/*` endpoints use the ordinary validated and enveloped Nest contract.

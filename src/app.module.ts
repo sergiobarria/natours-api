@@ -10,6 +10,7 @@ import { PlatformJobsModule } from './platform/jobs/platform-jobs.module.js';
 import { AuditModule } from './audit/audit.module.js';
 import { RateLimitModule } from './rate-limit/rate-limit.module.js';
 import { IdentityModule } from './identity/identity.module.js';
+import { UsersModule } from './users/users.module.js';
 
 @Module({
   imports: [
@@ -19,6 +20,7 @@ import { IdentityModule } from './identity/identity.module.js';
     AuditModule,
     RateLimitModule,
     IdentityModule,
+    UsersModule,
     LoggerModule.forRootAsync({
       imports: [AppConfigModule],
       inject: [AppConfigService],
