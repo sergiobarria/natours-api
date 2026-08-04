@@ -57,11 +57,11 @@ export class ReviewsController {
   @PublicRoute()
   @ApiParam({ name: 'reviewId', format: 'uuid' })
   @ApiOkResponse({ description: 'Public tour review.' })
-  detail(
+  async detail(
     @Param('tourId', ParseUUIDPipe) tourId: string,
     @Param('reviewId', ParseUUIDPipe) reviewId: string,
   ) {
-    return this.reviews.detail(tourId, reviewId);
+    return await this.reviews.detail(tourId, reviewId);
   }
 
   @Post()
@@ -70,12 +70,12 @@ export class ReviewsController {
   @RateLimitPolicy(RATE_LIMIT_POLICY.review)
   @ApiCreatedResponse({ description: 'Qualified customer review created.' })
   @ApiBody({ type: ReviewBodyDto })
-  create(
+  async create(
     @CurrentPrincipal() principal: AuthenticatedPrincipal,
     @Param('tourId', ParseUUIDPipe) tourId: string,
     @Body() body: ReviewBodyDto,
   ) {
-    return this.reviews.create(principal.userId, tourId, body);
+    return await this.reviews.create(principal.userId, tourId, body);
   }
 
   @Patch(':reviewId')
@@ -85,7 +85,7 @@ export class ReviewsController {
   @ApiParam({ name: 'reviewId', format: 'uuid' })
   @ApiOkResponse({ description: 'Author-owned review updated.' })
   @ApiBody({ type: UpdateReviewDto })
-  update(
+  async update(
     @CurrentPrincipal() principal: AuthenticatedPrincipal,
     @Param('tourId', ParseUUIDPipe) tourId: string,
     @Param('reviewId', ParseUUIDPipe) reviewId: string,
@@ -94,7 +94,7 @@ export class ReviewsController {
     if (Object.keys(body).length === 0) {
       throw new BadRequestException('At least one field is required.');
     }
-    return this.reviews.update(principal.userId, tourId, reviewId, body);
+    return await this.reviews.update(principal.userId, tourId, reviewId, body);
   }
 
   @Delete(':reviewId')
@@ -104,11 +104,11 @@ export class ReviewsController {
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiParam({ name: 'reviewId', format: 'uuid' })
   @ApiNoContentResponse({ description: 'Author-owned review hard deleted.' })
-  delete(
+  async delete(
     @CurrentPrincipal() principal: AuthenticatedPrincipal,
     @Param('tourId', ParseUUIDPipe) tourId: string,
     @Param('reviewId', ParseUUIDPipe) reviewId: string,
   ) {
-    return this.reviews.delete(principal.userId, tourId, reviewId);
+    await this.reviews.delete(principal.userId, tourId, reviewId);
   }
 }

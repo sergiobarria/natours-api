@@ -5,7 +5,7 @@ import { IsInt, IsOptional, IsString, Max, MaxLength, Min, MinLength } from 'cla
 const trim = ({ value }: { value: unknown }) => (typeof value === 'string' ? value.trim() : value);
 
 export class ReviewBodyDto {
-  @ApiProperty({ minimum: 1, maximum: 5, type: Number })
+  @ApiProperty({ minimum: 1, maximum: 5, type: 'integer' })
   @IsInt()
   @Min(1)
   @Max(5)
@@ -20,7 +20,7 @@ export class ReviewBodyDto {
 }
 
 export class UpdateReviewDto {
-  @ApiPropertyOptional({ minimum: 1, maximum: 5, type: Number })
+  @ApiPropertyOptional({ minimum: 1, maximum: 5, type: 'integer' })
   @IsOptional()
   @IsInt()
   @Min(1)
@@ -37,13 +37,13 @@ export class UpdateReviewDto {
 }
 
 export class ListReviewsQueryDto {
-  @ApiPropertyOptional({ default: 1, minimum: 1, type: Number })
+  @ApiPropertyOptional({ default: 1, minimum: 1, type: 'integer' })
   @Type(() => Number)
   @IsInt()
   @Min(1)
   page = 1;
 
-  @ApiPropertyOptional({ default: 20, minimum: 1, maximum: 100, type: Number })
+  @ApiPropertyOptional({ default: 20, minimum: 1, maximum: 100, type: 'integer' })
   @Type(() => Number)
   @IsInt()
   @Min(1)

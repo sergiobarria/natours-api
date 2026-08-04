@@ -469,6 +469,20 @@ describe('application foundation (e2e)', () => {
       currency: 'usd',
     });
 
+    for (const invalid of [
+      { rating: 1.5, text: 'Invalid decimal rating' },
+      { rating: 5, text: '   ' },
+    ]) {
+      await request(httpServer)
+        .post(`/api/v1/tours/${tourId}/reviews`)
+        .set('authorization', `Bearer ${authenticatedToken}`)
+        .send(invalid)
+        .expect(400)
+        .expect(response =>
+          expect(readErrorResponse(response).error.code).toBe('VALIDATION_FAILED'),
+        );
+    }
+
     const created = await request(httpServer)
       .post(`/api/v1/tours/${tourId}/reviews`)
       .set('authorization', `Bearer ${authenticatedToken}`)
