@@ -22,6 +22,12 @@ export const ENVIRONMENT_VARIABLES = {
   rateLimitAccountLimit: 'RATE_LIMIT_ACCOUNT_LIMIT',
   rateLimitAccountTtlMs: 'RATE_LIMIT_ACCOUNT_TTL_MS',
   rateLimitAccountBlockMs: 'RATE_LIMIT_ACCOUNT_BLOCK_MS',
+  rateLimitBookingLimit: 'RATE_LIMIT_BOOKING_LIMIT',
+  rateLimitBookingTtlMs: 'RATE_LIMIT_BOOKING_TTL_MS',
+  rateLimitBookingBlockMs: 'RATE_LIMIT_BOOKING_BLOCK_MS',
+  rateLimitWebhookLimit: 'RATE_LIMIT_WEBHOOK_LIMIT',
+  rateLimitWebhookTtlMs: 'RATE_LIMIT_WEBHOOK_TTL_MS',
+  rateLimitWebhookBlockMs: 'RATE_LIMIT_WEBHOOK_BLOCK_MS',
   appUrl: 'APP_URL',
   frontendUrl: 'FRONTEND_URL',
   betterAuthUrl: 'BETTER_AUTH_URL',
@@ -38,6 +44,12 @@ export const ENVIRONMENT_VARIABLES = {
   r2Endpoint: 'R2_ENDPOINT',
   r2PublicUrl: 'R2_PUBLIC_URL',
   r2Region: 'R2_REGION',
+  paymentProvider: 'PAYMENT_PROVIDER',
+  stripeSecretKey: 'STRIPE_SECRET_KEY',
+  stripeWebhookSecret: 'STRIPE_WEBHOOK_SECRET',
+  stripeCurrency: 'STRIPE_CURRENCY',
+  stripeCheckoutHoldMinutes: 'STRIPE_CHECKOUT_HOLD_MINUTES',
+  bookingCancellationCutoffHours: 'BOOKING_CANCELLATION_CUTOFF_HOURS',
 } as const;
 
 export const APP_ENVIRONMENTS = ['development', 'test', 'staging', 'production'] as const;

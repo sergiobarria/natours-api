@@ -29,6 +29,13 @@ import { RATE_LIMIT_POLICY } from '../src/rate-limit/rate-limit.constants.js';
 import { DATABASE } from '../src/database/database.constants.js';
 import type { Database } from '../src/database/database.types.js';
 import { outboxMessages } from '../src/database/schema/platform-jobs.js';
+import {
+  bookingIdempotency,
+  bookingPayments,
+  bookingTravelers,
+  bookings,
+  paymentProviderEvents,
+} from '../src/database/schema/bookings.js';
 import { users } from '../src/database/schema/identity.js';
 import {
   tourDepartures,
@@ -347,6 +354,141 @@ describe('application foundation (e2e)', () => {
       .expect(403);
   });
 
+  it('creates, replays, reads, and cancels a free verified-owner booking exactly once', async () => {
+    const tourId = randomUUID();
+    const departureId = randomUUID();
+    await database.insert(tours).values({
+      id: tourId,
+      name: 'Free Booking Tour',
+      slug: `free-booking-${tourId}`,
+      summary: 'Booking fixture',
+      durationDays: 1,
+      maximumGroupSize: 4,
+      difficulty: 'easy',
+      priceCents: 0,
+      startLocationName: 'Start',
+      startLocationLatitude: 1,
+      startLocationLongitude: 1,
+      isActive: true,
+    });
+    await database.insert(tourDepartures).values({
+      id: departureId,
+      tourId,
+      startAt: new Date(Date.now() + 7 * 86_400_000),
+      availableSpots: 4,
+      isActive: true,
+    });
+    const body = {
+      departureId,
+      travelers: [
+        { fullName: 'Traveler One', email: 'traveler@example.com', phone: '+12025550123' },
+      ],
+    };
+    const first = await request(httpServer)
+      .post('/api/v1/bookings')
+      .set('authorization', `Bearer ${authenticatedToken}`)
+      .set('idempotency-key', 'free-booking-e2e')
+      .send(body)
+      .expect(201);
+    const bookingId = (first.body as { data: { id: string } }).data.id;
+    expect(first.body).toMatchObject({ data: { status: 'confirmed', totalCents: 0, quantity: 1 } });
+    expect(first.headers['cache-control']).toBe('no-store, private');
+
+    await request(httpServer)
+      .post('/api/v1/bookings')
+      .set('authorization', `Bearer ${authenticatedToken}`)
+      .set('idempotency-key', 'free-booking-e2e')
+      .send(body)
+      .expect(201)
+      .expect(response => expect(response.body).toMatchObject({ data: { id: bookingId } }));
+    const [{ value }] = await database
+      .select({ value: sql<number>`count(*)` })
+      .from(bookings)
+      .where(eq(bookings.id, bookingId));
+    expect(Number(value)).toBe(1);
+
+    await request(httpServer)
+      .post(`/api/v1/bookings/${bookingId}/cancellation`)
+      .set('authorization', `Bearer ${authenticatedToken}`)
+      .expect(200)
+      .expect(response => expect(response.body).toMatchObject({ data: { status: 'cancelled' } }));
+    const [departure] = await database
+      .select()
+      .from(tourDepartures)
+      .where(eq(tourDepartures.id, departureId));
+    expect(departure).toMatchObject({ availableSpots: 4, reservedSpots: 0 });
+  });
+
+  it('confirms a paid booking only through a matching signed webhook', async () => {
+    const tourId = randomUUID();
+    const departureId = randomUUID();
+    await database.insert(tours).values({
+      id: tourId,
+      name: 'Paid Booking Tour',
+      slug: `paid-booking-${tourId}`,
+      summary: 'Paid fixture',
+      durationDays: 1,
+      maximumGroupSize: 2,
+      difficulty: 'easy',
+      priceCents: 1250,
+      startLocationName: 'Start',
+      startLocationLatitude: 1,
+      startLocationLongitude: 1,
+      isActive: true,
+    });
+    await database.insert(tourDepartures).values({
+      id: departureId,
+      tourId,
+      startAt: new Date(Date.now() + 7 * 86_400_000),
+      availableSpots: 2,
+      isActive: true,
+    });
+    const created = await request(httpServer)
+      .post('/api/v1/bookings')
+      .set('authorization', `Bearer ${authenticatedToken}`)
+      .set('idempotency-key', 'paid-booking-e2e')
+      .send({
+        departureId,
+        travelers: [
+          { fullName: 'Paid Traveler', email: 'paid@example.com', phone: '+12025550124' },
+        ],
+      })
+      .expect(201);
+    const bookingId = (created.body as { data: { id: string } }).data.id;
+    expect(created.body).toMatchObject({
+      data: { status: 'pending_payment', payment: { status: 'checkout_open' } },
+    });
+    const [payment] = await database
+      .select()
+      .from(bookingPayments)
+      .where(eq(bookingPayments.bookingId, bookingId));
+    await request(httpServer)
+      .post('/api/v1/stripe/webhook')
+      .set('stripe-signature', 'invalid')
+      .send({})
+      .expect(401);
+    await request(httpServer)
+      .post('/api/v1/stripe/webhook')
+      .set('stripe-signature', 'fake-valid-signature')
+      .send({
+        id: 'evt_paid_e2e',
+        type: 'checkout.completed',
+        bookingId,
+        paymentRecordId: payment.id,
+        checkoutId: payment.providerCheckoutId,
+        paymentId: payment.providerPaymentId,
+        amountCents: 1250,
+        currency: 'usd',
+        paid: true,
+      })
+      .expect(204);
+    await request(httpServer)
+      .get(`/api/v1/bookings/${bookingId}`)
+      .set('authorization', `Bearer ${authenticatedToken}`)
+      .expect(200)
+      .expect(response => expect(response.body).toMatchObject({ data: { status: 'confirmed' } }));
+  });
+
   it('keeps password recovery account-enumeration safe and queues only durable email', async () => {
     const body = { callbackURL: 'http://localhost:5173/reset-password' };
     const missing = await request(httpServer)
@@ -357,6 +499,11 @@ describe('application foundation (e2e)', () => {
   });
 
   it('creates, updates, staffs, lists, and soft deletes tours through the Bearer flow', async () => {
+    await database.delete(paymentProviderEvents);
+    await database.delete(bookingIdempotency);
+    await database.delete(bookingTravelers);
+    await database.delete(bookingPayments);
+    await database.delete(bookings);
     await database.delete(tourMedia);
     await database.delete(tourDepartures);
     await database.delete(tourGuideAssignments);

@@ -170,6 +170,7 @@ inspected and replayed through the existing job commands, which never display em
 ```dotenv
 STRIPE_SECRET_KEY=
 STRIPE_WEBHOOK_SECRET=
+PAYMENT_PROVIDER=stripe
 STRIPE_CURRENCY=usd
 STRIPE_CHECKOUT_HOLD_MINUTES=30
 BOOKING_CANCELLATION_CUTOFF_HOURS=48
@@ -185,6 +186,13 @@ pnpm bookings:reconcile-refunds
 ```
 
 Investigate Stripe and queue state before manual recovery. Seat restoration remains exactly once.
+
+Run `node dist/scheduler.js` alongside the API and worker. It upserts stable one-minute hold and
+Checkout-recovery schedules plus ten-minute refund reconciliation. Before manual mutation, inspect
+with `pnpm bookings:expire-holds -- --dry-run` or
+`pnpm bookings:reconcile-refunds -- --dry-run`; omit `--dry-run` to process one bounded batch. Output
+contains counts only. Failed provider calls retain explicit database state and safe job inspection;
+repair Stripe/Redis configuration and replay without altering booking rows manually.
 
 ## Object storage
 

@@ -55,6 +55,12 @@ Reserve inventory transactionally before creating Checkout. Persist recoverable 
 
 Cancellation uses pending and failed states because refund calls can fail. A scheduled worker reconciles external state without restoring seats more than once.
 
+The implemented payments module provides a provider-neutral `PaymentGateway`; booking application
+services do not import Stripe types. `StripePaymentGateway` owns Checkout/refund calls, signatures,
+event normalization, idempotency keys, and provider error translation. `FakePaymentGateway` supplies
+deterministic sessions and controllable failures. Booking rows carry `inventory_released_at`, and all
+terminal release paths lock both booking and departure so inventory moves exactly once.
+
 ## Media
 
 The shared `ObjectStorage` boundary abstracts Cloudflare R2's S3-compatible object operations and

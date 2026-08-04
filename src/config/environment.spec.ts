@@ -54,6 +54,12 @@ describe('validateEnvironment', () => {
       RATE_LIMIT_ACCOUNT_LIMIT: 30,
       RATE_LIMIT_ACCOUNT_TTL_MS: 60000,
       RATE_LIMIT_ACCOUNT_BLOCK_MS: 60000,
+      RATE_LIMIT_BOOKING_LIMIT: 20,
+      RATE_LIMIT_BOOKING_TTL_MS: 60000,
+      RATE_LIMIT_BOOKING_BLOCK_MS: 60000,
+      RATE_LIMIT_WEBHOOK_LIMIT: 120,
+      RATE_LIMIT_WEBHOOK_TTL_MS: 60000,
+      RATE_LIMIT_WEBHOOK_BLOCK_MS: 60000,
       APP_URL: databaseEnvironment.APP_URL,
       FRONTEND_URL: databaseEnvironment.FRONTEND_URL,
       BETTER_AUTH_URL: databaseEnvironment.BETTER_AUTH_URL,
@@ -70,6 +76,12 @@ describe('validateEnvironment', () => {
       R2_ENDPOINT: '',
       R2_PUBLIC_URL: 'http://localhost:3000/media',
       R2_REGION: 'auto',
+      PAYMENT_PROVIDER: 'fake',
+      STRIPE_SECRET_KEY: '',
+      STRIPE_WEBHOOK_SECRET: '',
+      STRIPE_CURRENCY: 'usd',
+      STRIPE_CHECKOUT_HOLD_MINUTES: 30,
+      BOOKING_CANCELLATION_CUTOFF_HOURS: 48,
     });
   });
 

@@ -3,7 +3,7 @@ import { setTimeout as delay } from 'node:timers/promises';
 
 const startupObservationMs = 750;
 const shutdownTimeoutMs = 5_000;
-const entries = ['main', 'worker'] as const;
+const entries = ['main', 'worker', 'scheduler'] as const;
 
 interface ProcessExit {
   code: number | null;
@@ -53,4 +53,4 @@ for (const [index, entry] of entries.entries()) {
   await checkProcess(entry, 31_00 + index);
 }
 
-console.info('API and worker started and stopped cleanly.');
+console.info('API, worker, and scheduler started and stopped cleanly.');

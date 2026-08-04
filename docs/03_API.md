@@ -135,6 +135,21 @@ Better Auth invokes the queued email adapter for verification and recovery deliv
 
 Booking creation requires a schema-defined idempotency header and traveler roster. Free totals confirm immediately; paid totals return pending booking and Checkout data. Browser redirects never prove fulfillment. Only a signed matching webhook confirms payment. Repeated booking requests and webhook events are safe.
 
+`POST /bookings` requires `Idempotency-Key` (1-255 printable ASCII characters) and a JSON body with
+`departureId` plus an ordered `travelers` array. Each traveler has `fullName`, RFC-valid `email`, and
+E.164 `phone`. Matching owner/key/request retries replay the booking; a changed request returns `409`.
+Paid Checkout creation failure returns `503` and the same key safely retries the recoverable hold.
+
+`GET /bookings` uses the standard page/limit convention and stable `createdAt DESC, id DESC`
+ordering. `GET /bookings/{bookingId}` and `POST /bookings/{bookingId}/cancellation` are owner-only and
+return `404` for a missing or foreign booking. Free cancellation returns `200`; paid cancellation
+returns `202` while the full refund is pending. All booking responses are `no-store`.
+
+`POST /stripe/webhook` requires a valid Stripe signature over the preserved raw body. The initial
+event contract accepts paid `checkout.session.completed`, `checkout.session.expired`, and fully
+refunded `charge.refunded`; unrelated event types are acknowledged without mutation. Provider,
+booking, payment, currency, and amount mismatches return a conflict without consuming event state.
+
 Review creation requires a confirmed purchased departure in the past. Updates and deletes require ownership. Tour and departure deletion is soft deletion; deleted resources disappear from normal binding while history remains.
 
 ## Status and errors

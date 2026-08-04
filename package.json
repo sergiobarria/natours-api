@@ -20,6 +20,8 @@
     "start:prod": "node dist/main.js",
     "start:worker": "node dist/worker.js",
     "start:worker:dev": "nest start --entryFile worker --watch",
+    "start:scheduler": "node dist/scheduler.js",
+    "start:scheduler:dev": "nest start --entryFile scheduler --watch",
     "lint": "eslint \"{src,test,scripts}/**/*.ts\" \"*.ts\"",
     "lint:fix": "pnpm lint --fix",
     "typecheck": "tsc --noEmit --incremental false",
@@ -45,7 +47,9 @@
     "media:cleanup": "tsx scripts/media/cleanup.ts",
     "jobs:list-failed": "tsx scripts/jobs/list-failed.ts",
     "jobs:inspect": "tsx scripts/jobs/inspect.ts",
-    "jobs:replay": "tsx scripts/jobs/replay.ts"
+    "jobs:replay": "tsx scripts/jobs/replay.ts",
+    "bookings:expire-holds": "tsx scripts/bookings/expire-holds.ts",
+    "bookings:reconcile-refunds": "tsx scripts/bookings/reconcile-refunds.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1101.0",
@@ -65,6 +69,7 @@
     "class-validator": "^0.14.2",
     "dotenv": "^17.4.2",
     "drizzle-orm": "^0.45.2",
+    "express": "^5.2.1",
     "helmet": "^8.1.0",
     "ioredis": "6.0.0",
     "nestjs-pino": "^4.4.1",
@@ -74,6 +79,7 @@
     "resend": "6.18.1",
     "rxjs": "^7.8.1",
     "sharp": "^0.35.3",
+    "stripe": "^22.4.0",
     "zod": "^4.1.5"
   },
   "devDependencies": {

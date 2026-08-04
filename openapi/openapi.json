@@ -415,6 +415,57 @@
         "tags": ["native-authentication"]
       }
     },
+    "/api/v1/bookings": {
+      "get": {
+        "operationId": "BookingsController_list_v1",
+        "parameters": [],
+        "responses": { "200": { "description": "Owner booking history." } },
+        "security": [{ "bearerAuth": [] }],
+        "tags": ["bookings"]
+      },
+      "post": {
+        "operationId": "BookingsController_create_v1",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": true,
+            "schema": { "type": "string" }
+          }
+        ],
+        "responses": {
+          "201": { "description": "Booking created or replayed." }
+        },
+        "security": [{ "bearerAuth": [] }],
+        "tags": ["bookings"]
+      }
+    },
+    "/api/v1/bookings/{bookingId}": {
+      "get": {
+        "operationId": "BookingsController_detail_v1",
+        "parameters": [],
+        "responses": { "200": { "description": "" } },
+        "security": [{ "bearerAuth": [] }],
+        "tags": ["bookings"]
+      }
+    },
+    "/api/v1/bookings/{bookingId}/cancellation": {
+      "post": {
+        "operationId": "BookingsController_cancel_v1",
+        "parameters": [],
+        "responses": { "201": { "description": "" } },
+        "security": [{ "bearerAuth": [] }],
+        "tags": ["bookings"]
+      }
+    },
+    "/api/v1/stripe/webhook": {
+      "post": {
+        "operationId": "StripeWebhookController_webhook_v1",
+        "parameters": [],
+        "responses": { "204": { "description": "" } },
+        "tags": ["stripe"]
+      }
+    },
     "/api/v1/tours": {
       "get": {
         "operationId": "ToursController_list_v1",

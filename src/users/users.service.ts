@@ -13,6 +13,7 @@ import { DATABASE } from '../database/database.constants.js';
 import type { Database } from '../database/database.types.js';
 import { users, type ApplicationRole } from '../database/schema/identity.js';
 import { tourGuideAssignments } from '../database/schema/tours.js';
+import { bookings } from '../database/schema/bookings.js';
 
 const userSelection = {
   createdAt: users.createdAt,
@@ -141,6 +142,15 @@ export class UsersService {
         throw new UnprocessableEntityException(
           'Remove guide assignments before deleting this user.',
         );
+      }
+      const [booking] = await transaction
+        .select({ id: bookings.id })
+        .from(bookings)
+        .where(eq(bookings.userId, targetId))
+        .limit(1)
+        .for('update');
+      if (booking) {
+        throw new UnprocessableEntityException('Users with booking history cannot be deleted.');
       }
       const [deleted] = await transaction
         .delete(users)
