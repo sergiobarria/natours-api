@@ -54,6 +54,12 @@ Each traveler has a full name, RFC-valid email, and E.164 phone. Traveler count 
 
 A user-scoped hash of the required client idempotency key prevents duplicate holds. Booking and external payment identifiers are unique.
 
+The canonical booking request is the departure UUID plus the ordered traveler roster. Reusing a key
+with the same canonical request replays the original booking; reusing it with different content is a
+conflict. Only hashes of client keys are retained. The purchaser is snapshotted separately and need
+not appear in the roster. Percentage discounts are rounded half-up to cents per unit before the
+discounted unit price is multiplied by traveler quantity.
+
 Booking creation locks the active future departure and atomically transfers spots from available to reserved. Paid holds last 30 minutes by default and open card-only USD Stripe Checkout. Free bookings confirm immediately. Paid bookings confirm only through a valid matching webhook.
 
 Expired holds restore seats exactly once. Confirmed bookings may be cancelled in full until the configured cutoff, 48 hours before departure by default. Free cancellations complete immediately. Paid cancellations restore seats only after a successful full refund. Failed refunds preserve capacity and remain retryable from the original timely request.

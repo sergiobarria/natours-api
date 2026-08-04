@@ -12,6 +12,7 @@ const allowedFields: Record<AuditAction, ReadonlySet<string>> = {
   'tour.guide_team_replaced': new Set(['guideIds']),
   'tour.departure_changed': new Set(['status', 'startAt', 'availableSpots', 'isActive']),
   'tour.media_changed': new Set(['status', 'position', 'count']),
+  'booking.changed': new Set(['status', 'quantity', 'totalCents']),
 };
 
 function redact(value: unknown): unknown {

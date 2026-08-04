@@ -1,4 +1,11 @@
-import { Inject, Injectable, Logger, OnApplicationShutdown, OnModuleInit } from '@nestjs/common';
+import {
+  Inject,
+  Injectable,
+  Logger,
+  OnApplicationShutdown,
+  OnModuleInit,
+  Optional,
+} from '@nestjs/common';
 import { UnrecoverableError, Worker, type Job } from 'bullmq';
 import { AppConfigService } from '../../config/app-config.service.js';
 import { DatabaseUnitOfWork } from '../../database/database-unit-of-work.js';
@@ -6,6 +13,12 @@ import { jobEffects } from '../../database/schema/platform-jobs.js';
 import { sanitizeOperationalError } from '../../security/sensitive-data.js';
 import { AuthEmailJob, parseAuthEmailPayload } from '../../identity/auth-email.job.js';
 import { AUTH_EMAIL_JOB } from '../../identity/identity.constants.js';
+import { BookingsService } from '../../bookings/bookings.service.js';
+import {
+  BOOKING_CHECKOUT_RECOVERY_JOB,
+  BOOKING_EXPIRE_JOB,
+  BOOKING_REFUND_RECONCILIATION_JOB,
+} from './job.constants.js';
 import { REDIS_BLOCKING_CLIENT_FACTORY } from '../redis/redis.constants.js';
 import type { RedisBlockingClientFactory } from '../redis/redis.types.js';
 import type { RedisClient } from '../redis/redis.types.js';
@@ -27,6 +40,7 @@ export class JobWorkerLifecycle implements OnModuleInit, OnApplicationShutdown {
     @Inject(AuthEmailJob) private readonly authEmail: Pick<AuthEmailJob, 'execute'>,
     @Inject(REDIS_BLOCKING_CLIENT_FACTORY)
     private readonly createBlockingClient: RedisBlockingClientFactory,
+    @Optional() private readonly bookings?: BookingsService,
   ) {}
 
   onModuleInit(): void {
@@ -57,6 +71,18 @@ export class JobWorkerLifecycle implements OnModuleInit, OnApplicationShutdown {
   }
 
   private async process(job: Job<QueuedJobData>): Promise<void> {
+    if (job.name === BOOKING_EXPIRE_JOB) {
+      await this.requireBookings().expireDue();
+      return;
+    }
+    if (job.name === BOOKING_CHECKOUT_RECOVERY_JOB) {
+      await this.requireBookings().recoverCheckouts();
+      return;
+    }
+    if (job.name === BOOKING_REFUND_RECONCILIATION_JOB) {
+      await this.requireBookings().reconcileRefunds();
+      return;
+    }
     if (job.name !== AUTH_EMAIL_JOB) {
       throw new UnrecoverableError(`Unknown job type: ${job.name}`);
     }
@@ -77,5 +103,10 @@ export class JobWorkerLifecycle implements OnModuleInit, OnApplicationShutdown {
 
       await this.authEmail.execute(payload);
     });
+  }
+
+  private requireBookings(): BookingsService {
+    if (!this.bookings) throw new UnrecoverableError('Bookings worker is unavailable.');
+    return this.bookings;
   }
 }

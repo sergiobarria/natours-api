@@ -43,7 +43,7 @@ describe('PostgreSQL persistence infrastructure', () => {
         AND column_name = 'label'
     `);
 
-    expect(productionHistory.rows[0]?.count).toBe('7');
+    expect(productionHistory.rows[0]?.count).toBe('8');
     expect(fixtureHistory.rows[0]?.count).toBe('2');
     expect(upgradedColumn.rows).toEqual([{ column_name: 'label' }]);
   });
@@ -304,7 +304,7 @@ describe('PostgreSQL persistence infrastructure', () => {
       ORDER BY schema_name
     `);
 
-    expect(purgedTables).toBe(12);
+    expect(purgedTables).toBe(17);
     expect(records.rows[0]?.count).toBe('0');
     expect(migrationSchemas.rows.map(row => row.schema_name)).toEqual([
       'drizzle',

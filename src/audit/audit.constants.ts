@@ -7,6 +7,7 @@ export const AUDIT_ACTION = {
   tourGuideTeamReplaced: 'tour.guide_team_replaced',
   tourDepartureChanged: 'tour.departure_changed',
   tourMediaChanged: 'tour.media_changed',
+  bookingChanged: 'booking.changed',
 } as const;
 
 export type AuditAction = (typeof AUDIT_ACTION)[keyof typeof AUDIT_ACTION];

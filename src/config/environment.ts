@@ -75,6 +75,12 @@ const rawEnvironmentSchema = z
     [ENVIRONMENT_VARIABLES.rateLimitAccountLimit]: positiveInteger,
     [ENVIRONMENT_VARIABLES.rateLimitAccountTtlMs]: positiveInteger,
     [ENVIRONMENT_VARIABLES.rateLimitAccountBlockMs]: positiveInteger,
+    [ENVIRONMENT_VARIABLES.rateLimitBookingLimit]: positiveInteger.default(20),
+    [ENVIRONMENT_VARIABLES.rateLimitBookingTtlMs]: positiveInteger.default(60_000),
+    [ENVIRONMENT_VARIABLES.rateLimitBookingBlockMs]: positiveInteger.default(60_000),
+    [ENVIRONMENT_VARIABLES.rateLimitWebhookLimit]: positiveInteger.default(120),
+    [ENVIRONMENT_VARIABLES.rateLimitWebhookTtlMs]: positiveInteger.default(60_000),
+    [ENVIRONMENT_VARIABLES.rateLimitWebhookBlockMs]: positiveInteger.default(60_000),
     [ENVIRONMENT_VARIABLES.appUrl]: originSchema,
     [ENVIRONMENT_VARIABLES.frontendUrl]: originSchema,
     [ENVIRONMENT_VARIABLES.betterAuthUrl]: originSchema,
@@ -91,6 +97,12 @@ const rawEnvironmentSchema = z
     [ENVIRONMENT_VARIABLES.r2Endpoint]: z.union([z.literal(''), originSchema]).default(''),
     [ENVIRONMENT_VARIABLES.r2PublicUrl]: originSchema.default('http://localhost:3000/media'),
     [ENVIRONMENT_VARIABLES.r2Region]: z.string().trim().min(1).default('auto'),
+    [ENVIRONMENT_VARIABLES.paymentProvider]: z.enum(['stripe', 'fake']).default('fake'),
+    [ENVIRONMENT_VARIABLES.stripeSecretKey]: z.string().default(''),
+    [ENVIRONMENT_VARIABLES.stripeWebhookSecret]: z.string().default(''),
+    [ENVIRONMENT_VARIABLES.stripeCurrency]: z.literal('usd').default('usd'),
+    [ENVIRONMENT_VARIABLES.stripeCheckoutHoldMinutes]: positiveInteger.default(30),
+    [ENVIRONMENT_VARIABLES.bookingCancellationCutoffHours]: positiveInteger.default(48),
   })
   .superRefine((environment, context) => {
     if (environment.NODE_ENV === APP_ENVIRONMENT.production && !environment.CORS_ORIGINS?.trim()) {
@@ -141,6 +153,26 @@ const rawEnvironmentSchema = z
         code: 'custom',
         path: ['OBJECT_STORAGE_PROVIDER'],
         message: 'OBJECT_STORAGE_PROVIDER must be r2 in production',
+      });
+    }
+    if (environment.PAYMENT_PROVIDER === 'stripe') {
+      for (const key of ['STRIPE_SECRET_KEY', 'STRIPE_WEBHOOK_SECRET'] as const) {
+        if (!environment[key].trim())
+          context.addIssue({
+            code: 'custom',
+            path: [key],
+            message: `${key} is required when PAYMENT_PROVIDER is stripe`,
+          });
+      }
+    }
+    if (
+      environment.NODE_ENV === APP_ENVIRONMENT.production &&
+      environment.PAYMENT_PROVIDER !== 'stripe'
+    ) {
+      context.addIssue({
+        code: 'custom',
+        path: ['PAYMENT_PROVIDER'],
+        message: 'PAYMENT_PROVIDER must be stripe in production',
       });
     }
   });

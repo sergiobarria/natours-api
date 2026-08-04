@@ -33,6 +33,8 @@ export class AppConfigService {
     global: { limit: number; ttl: number; blockDuration: number };
     authentication: { limit: number; ttl: number; blockDuration: number };
     account: { limit: number; ttl: number; blockDuration: number };
+    booking: { limit: number; ttl: number; blockDuration: number };
+    webhook: { limit: number; ttl: number; blockDuration: number };
   };
   readonly readinessTimeoutMs: number;
   readonly appUrl: string;
@@ -57,6 +59,12 @@ export class AppConfigService {
   readonly r2Endpoint: string;
   readonly r2PublicUrl: string;
   readonly r2Region: string;
+  readonly paymentProvider: Environment['PAYMENT_PROVIDER'];
+  readonly stripeSecretKey: string;
+  readonly stripeWebhookSecret: string;
+  readonly stripeCurrency: 'usd';
+  readonly stripeCheckoutHoldMinutes: number;
+  readonly bookingCancellationCutoffHours: number;
 
   constructor(environment: Environment) {
     this.environment = environment.NODE_ENV;
@@ -102,6 +110,16 @@ export class AppConfigService {
         environment.RATE_LIMIT_ACCOUNT_TTL_MS,
         environment.RATE_LIMIT_ACCOUNT_BLOCK_MS,
       ),
+      booking: rateLimit(
+        environment.RATE_LIMIT_BOOKING_LIMIT,
+        environment.RATE_LIMIT_BOOKING_TTL_MS,
+        environment.RATE_LIMIT_BOOKING_BLOCK_MS,
+      ),
+      webhook: rateLimit(
+        environment.RATE_LIMIT_WEBHOOK_LIMIT,
+        environment.RATE_LIMIT_WEBHOOK_TTL_MS,
+        environment.RATE_LIMIT_WEBHOOK_BLOCK_MS,
+      ),
     };
     this.readinessTimeoutMs = RUNTIME_DEFAULTS.readinessTimeoutMs;
     this.appUrl = environment.APP_URL;
@@ -128,6 +146,12 @@ export class AppConfigService {
     this.r2Endpoint = environment.R2_ENDPOINT;
     this.r2PublicUrl = environment.R2_PUBLIC_URL.replace(/\/$/, '');
     this.r2Region = environment.R2_REGION;
+    this.paymentProvider = environment.PAYMENT_PROVIDER;
+    this.stripeSecretKey = environment.STRIPE_SECRET_KEY;
+    this.stripeWebhookSecret = environment.STRIPE_WEBHOOK_SECRET;
+    this.stripeCurrency = environment.STRIPE_CURRENCY;
+    this.stripeCheckoutHoldMinutes = environment.STRIPE_CHECKOUT_HOLD_MINUTES;
+    this.bookingCancellationCutoffHours = environment.BOOKING_CANCELLATION_CUTOFF_HOURS;
   }
 
   get isDevelopment(): boolean {

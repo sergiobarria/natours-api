@@ -1,6 +1,7 @@
 import { INestApplication, ValidationPipe, VersioningType } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import helmet from 'helmet';
+import express from 'express';
 import { AppConfigService } from './config/app-config.service.js';
 import { APP_ENVIRONMENT } from './config/config.constants.js';
 import { Environment } from './config/environment.js';
@@ -26,10 +27,19 @@ export async function configureApplication(
     exclude: [HTTP_ROUTES.health, HTTP_ROUTES.ready],
   });
 
-  const express = app.getHttpAdapter().getInstance() as {
+  const expressInstance = app.getHttpAdapter().getInstance() as {
     set(name: string, value: unknown): void;
   };
-  express.set('trust proxy', config.trustedProxyCidrs);
+  expressInstance.set('trust proxy', config.trustedProxyCidrs);
+
+  app.use(
+    `/${API_PREFIX}/v${API_VERSION}/stripe/webhook`,
+    express.raw({ type: 'application/json', limit: '1mb' }),
+    (request: { body?: unknown; rawBody?: Buffer }, _response: unknown, next: () => void) => {
+      if (Buffer.isBuffer(request.body)) request.rawBody = request.body;
+      next();
+    },
+  );
 
   app.enableVersioning({
     type: VersioningType.URI,
