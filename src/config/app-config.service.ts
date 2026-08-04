@@ -34,6 +34,7 @@ export class AppConfigService {
     authentication: { limit: number; ttl: number; blockDuration: number };
     account: { limit: number; ttl: number; blockDuration: number };
     booking: { limit: number; ttl: number; blockDuration: number };
+    review: { limit: number; ttl: number; blockDuration: number };
     webhook: { limit: number; ttl: number; blockDuration: number };
   };
   readonly readinessTimeoutMs: number;
@@ -114,6 +115,11 @@ export class AppConfigService {
         environment.RATE_LIMIT_BOOKING_LIMIT,
         environment.RATE_LIMIT_BOOKING_TTL_MS,
         environment.RATE_LIMIT_BOOKING_BLOCK_MS,
+      ),
+      review: rateLimit(
+        environment.RATE_LIMIT_REVIEW_LIMIT,
+        environment.RATE_LIMIT_REVIEW_TTL_MS,
+        environment.RATE_LIMIT_REVIEW_BLOCK_MS,
       ),
       webhook: rateLimit(
         environment.RATE_LIMIT_WEBHOOK_LIMIT,

@@ -91,8 +91,9 @@ booking request -> validate -> transaction + lock departure -> reserve seats
                 -> paid: create Checkout -> signed webhook -> confirm
                 -> timeout: expiration job -> restore seats
 
-review request -> verify past confirmed purchase -> transaction + lock tour
-               -> mutate review -> recompute aggregate -> commit
+review request -> authenticate customer -> transaction + lock non-deleted tour
+               -> create: verify confirmed past booking snapshot
+               -> mutate review -> count + round(avg(rating), 2) -> update tour -> commit
 ```
 
 Correctness must not depend on optional event subscribers. Keep transport, business rules, persistence, and integrations testable independently.

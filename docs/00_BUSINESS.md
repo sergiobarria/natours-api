@@ -21,7 +21,8 @@ Natours is currently the merchant and catalog operator. It is not yet a supplier
 - Structured tour details and ordered galleries improve purchase confidence.
 - Capacity holds prevent overselling during checkout.
 - Booking snapshots preserve what the customer purchased.
-- Reviews require a confirmed past purchase, strengthening rating trust.
+- Reviews require a confirmed past purchase and are limited to one per customer and tour,
+  strengthening rating trust.
 - Operators receive a consistent view of schedules, ratings, demand, and guide assignments.
 
 ## Business model

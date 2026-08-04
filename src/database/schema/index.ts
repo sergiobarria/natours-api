@@ -6,3 +6,4 @@ export * from './platform-jobs.js';
 export * from './operations.js';
 export * from './primitives.js';
 export * from './bookings.js';
+export * from './reviews.js';

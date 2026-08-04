@@ -14,6 +14,7 @@ import { UsersModule } from './users/users.module.js';
 import { ToursModule } from './tours/tours.module.js';
 import { StorageModule } from './storage/storage.module.js';
 import { BookingsModule } from './bookings/bookings.module.js';
+import { ReviewsModule } from './reviews/reviews.module.js';
 
 @Module({
   imports: [
@@ -27,6 +28,7 @@ import { BookingsModule } from './bookings/bookings.module.js';
     StorageModule,
     ToursModule,
     BookingsModule,
+    ReviewsModule,
     LoggerModule.forRootAsync({
       imports: [AppConfigModule],
       inject: [AppConfigService],

@@ -70,7 +70,14 @@ A review belongs to one user and tour, with an integer rating from 1 through 5 a
 
 Creation requires a confirmed booking for that tour whose snapshotted departure is in the past. Recheck qualification inside the transaction. Only authors may update or delete.
 
+Only users with the customer `user` role may write reviews; administrator and guide roles cannot
+bypass that rule. An inactive tour remains reviewable by a qualified purchaser, while a
+soft-deleted tour does not. Missing and foreign protected reviews are indistinguishable.
+
 Reviews are hard-deleted. Every mutation locks the tour and recomputes count and average transactionally. An unreviewed tour has a null average and zero count; otherwise the average is rounded to two decimals.
+
+Review mutations are not audit events. Review content and purchaser identity are deliberately not
+copied into the administrative audit ledger.
 
 ## Account lifecycle
 

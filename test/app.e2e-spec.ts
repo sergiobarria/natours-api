@@ -37,6 +37,7 @@ import {
   paymentProviderEvents,
 } from '../src/database/schema/bookings.js';
 import { users } from '../src/database/schema/identity.js';
+import { reviews } from '../src/database/schema/reviews.js';
 import {
   tourDepartures,
   tourGuideAssignments,
@@ -419,6 +420,106 @@ describe('application foundation (e2e)', () => {
     expect(departure).toMatchObject({ availableSpots: 4, reservedSpots: 0 });
   });
 
+  it('publishes and manages only qualified owner reviews with correct aggregates', async () => {
+    await database
+      .update(users)
+      .set({ role: 'user', emailVerified: true })
+      .where(eq(users.id, authenticatedUserId));
+    const tourId = randomUUID();
+    const departureId = randomUUID();
+    const departureStartAt = new Date(Date.now() - 86_400_000);
+    await database.insert(tours).values({
+      id: tourId,
+      name: 'Completed Review Tour',
+      slug: `completed-review-${tourId}`,
+      summary: 'Review e2e fixture',
+      durationDays: 1,
+      maximumGroupSize: 4,
+      difficulty: 'easy',
+      priceCents: 100,
+      startLocationName: 'Start',
+      startLocationLatitude: 1,
+      startLocationLongitude: 1,
+      isActive: true,
+    });
+    await database.insert(tourDepartures).values({
+      id: departureId,
+      tourId,
+      startAt: departureStartAt,
+      availableSpots: 3,
+      reservedSpots: 1,
+    });
+    await database.insert(bookings).values({
+      id: randomUUID(),
+      userId: authenticatedUserId,
+      tourId,
+      departureId,
+      status: 'confirmed',
+      purchaserName: 'Updated Auth Test',
+      purchaserEmail: authenticatedEmail,
+      tourName: 'Completed Review Tour',
+      departureStartAt,
+      unitPriceCents: 100,
+      discountPercentage: null,
+      discountCents: 0,
+      discountedUnitPriceCents: 100,
+      quantity: 1,
+      subtotalCents: 100,
+      totalCents: 100,
+      currency: 'usd',
+    });
+
+    const created = await request(httpServer)
+      .post(`/api/v1/tours/${tourId}/reviews`)
+      .set('authorization', `Bearer ${authenticatedToken}`)
+      .send({ rating: 5, text: '  Excellent completed tour  ' })
+      .expect(201);
+    const reviewId = (created.body as { data: { id: string } }).data.id;
+    expect(created.body).toMatchObject({
+      data: {
+        id: reviewId,
+        text: 'Excellent completed tour',
+        user: { id: authenticatedUserId, name: 'Updated Auth Test' },
+      },
+    });
+    await request(httpServer)
+      .post(`/api/v1/tours/${tourId}/reviews`)
+      .set('authorization', `Bearer ${authenticatedToken}`)
+      .send({ rating: 4, text: 'Duplicate' })
+      .expect(409)
+      .expect(response =>
+        expect(readErrorResponse(response).error.code).toBe('REVIEW_ALREADY_EXISTS'),
+      );
+    const listed = await request(httpServer)
+      .get(`/api/v1/tours/${tourId}/reviews?page=1&limit=1`)
+      .expect(200);
+    expect(listed.body).toMatchObject({
+      data: [expect.objectContaining({ id: reviewId })],
+      meta: { pagination: { page: 1, perPage: 1, totalItems: 1 } },
+    });
+    expect(listed.headers['cache-control']).not.toBe('no-store, private');
+    await request(httpServer)
+      .patch(`/api/v1/tours/${tourId}/reviews/${reviewId}`)
+      .set('authorization', `Bearer ${authenticatedToken}`)
+      .send({ rating: 4 })
+      .expect(200)
+      .expect(response => expect(response.body).toMatchObject({ data: { rating: 4 } }));
+    await request(httpServer)
+      .patch(`/api/v1/tours/${tourId}/reviews/${randomUUID()}`)
+      .set('authorization', `Bearer ${authenticatedToken}`)
+      .send({ rating: 1 })
+      .expect(404);
+    await request(httpServer)
+      .delete(`/api/v1/tours/${tourId}/reviews/${reviewId}`)
+      .set('authorization', `Bearer ${authenticatedToken}`)
+      .expect(204);
+    expect(await database.select().from(reviews).where(eq(reviews.id, reviewId))).toEqual([]);
+    const [tour] = await database.select().from(tours).where(eq(tours.id, tourId));
+    expect(tour).toMatchObject({ ratingCount: 0, ratingAverage: null });
+    await request(httpServer).get(`/api/v1/tours/${tourId}/reviews/${reviewId}`).expect(404);
+    await database.update(users).set({ role: 'admin' }).where(eq(users.id, authenticatedUserId));
+  });
+
   it('confirms a paid booking only through a matching signed webhook', async () => {
     const tourId = randomUUID();
     const departureId = randomUUID();
@@ -504,6 +605,7 @@ describe('application foundation (e2e)', () => {
     await database.delete(bookingTravelers);
     await database.delete(bookingPayments);
     await database.delete(bookings);
+    await database.delete(reviews);
     await database.delete(tourMedia);
     await database.delete(tourDepartures);
     await database.delete(tourGuideAssignments);

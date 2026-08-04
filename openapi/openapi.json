@@ -111,6 +111,14 @@
         "required": ["leadGuideId", "guideIds"],
         "type": "object"
       },
+      "ReviewBodyDto": {
+        "properties": {
+          "rating": { "maximum": 5, "minimum": 1, "type": "number" },
+          "text": { "maxLength": 2000, "minLength": 1, "type": "string" }
+        },
+        "required": ["rating", "text"],
+        "type": "object"
+      },
       "TourLocationDto": {
         "properties": {
           "address": { "maxLength": 300, "nullable": true, "type": "string" },
@@ -124,6 +132,13 @@
       "UpdateProfileDto": {
         "properties": { "name": { "maxLength": 100, "type": "string" } },
         "required": ["name"],
+        "type": "object"
+      },
+      "UpdateReviewDto": {
+        "properties": {
+          "rating": { "maximum": 5, "minimum": 1, "type": "number" },
+          "text": { "maxLength": 2000, "minLength": 1, "type": "string" }
+        },
         "type": "object"
       },
       "UpdateRoleDto": {
@@ -715,6 +730,137 @@
         "responses": { "204": { "description": "Tour image deleted." } },
         "security": [{ "bearerAuth": [] }],
         "tags": ["images"]
+      }
+    },
+    "/api/v1/tours/{tourId}/reviews": {
+      "get": {
+        "operationId": "ReviewsController_list_v1",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": { "default": 1, "minimum": 1, "type": "number" }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 20,
+              "maximum": 100,
+              "minimum": 1,
+              "type": "number"
+            }
+          },
+          {
+            "in": "path",
+            "name": "tourId",
+            "required": true,
+            "schema": { "format": "uuid" }
+          }
+        ],
+        "responses": {
+          "200": { "description": "Newest-first public tour reviews." }
+        },
+        "tags": ["reviews"]
+      },
+      "post": {
+        "operationId": "ReviewsController_create_v1",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "tourId",
+            "required": true,
+            "schema": { "format": "uuid" }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/ReviewBodyDto" }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": { "description": "Qualified customer review created." }
+        },
+        "security": [{ "bearerAuth": [] }],
+        "tags": ["reviews"]
+      }
+    },
+    "/api/v1/tours/{tourId}/reviews/{reviewId}": {
+      "delete": {
+        "operationId": "ReviewsController_delete_v1",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "reviewId",
+            "required": true,
+            "schema": { "format": "uuid" }
+          },
+          {
+            "in": "path",
+            "name": "tourId",
+            "required": true,
+            "schema": { "format": "uuid" }
+          }
+        ],
+        "responses": {
+          "204": { "description": "Author-owned review hard deleted." }
+        },
+        "security": [{ "bearerAuth": [] }],
+        "tags": ["reviews"]
+      },
+      "get": {
+        "operationId": "ReviewsController_detail_v1",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "reviewId",
+            "required": true,
+            "schema": { "format": "uuid" }
+          },
+          {
+            "in": "path",
+            "name": "tourId",
+            "required": true,
+            "schema": { "format": "uuid" }
+          }
+        ],
+        "responses": { "200": { "description": "Public tour review." } },
+        "tags": ["reviews"]
+      },
+      "patch": {
+        "operationId": "ReviewsController_update_v1",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "reviewId",
+            "required": true,
+            "schema": { "format": "uuid" }
+          },
+          {
+            "in": "path",
+            "name": "tourId",
+            "required": true,
+            "schema": { "format": "uuid" }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/UpdateReviewDto" }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": { "description": "Author-owned review updated." }
+        },
+        "security": [{ "bearerAuth": [] }],
+        "tags": ["reviews"]
       }
     },
     "/api/v1/tours/{tourId}/start-dates": {
