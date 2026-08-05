@@ -3,6 +3,7 @@ export const RATE_LIMIT_POLICY = {
   authentication: 'authentication',
   account: 'account',
   booking: 'booking',
+  review: 'review',
   webhook: 'webhook',
 } as const;
 

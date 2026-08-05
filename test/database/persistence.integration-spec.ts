@@ -43,7 +43,7 @@ describe('PostgreSQL persistence infrastructure', () => {
         AND column_name = 'label'
     `);
 
-    expect(productionHistory.rows[0]?.count).toBe('8');
+    expect(productionHistory.rows[0]?.count).toBe('9');
     expect(fixtureHistory.rows[0]?.count).toBe('2');
     expect(upgradedColumn.rows).toEqual([{ column_name: 'label' }]);
   });
@@ -63,7 +63,7 @@ describe('PostgreSQL persistence infrastructure', () => {
       const after = await upgradeDatabase.pool.query<{ table_name: string }>(`
         SELECT table_name
         FROM information_schema.tables
-        WHERE table_schema = 'public' AND table_name IN ('accounts', 'audit_events', 'job_effects', 'outbox_messages', 'sessions', 'tour_departures', 'tour_guide_assignments', 'tour_media', 'tours', 'users', 'verifications')
+        WHERE table_schema = 'public' AND table_name IN ('accounts', 'audit_events', 'job_effects', 'outbox_messages', 'reviews', 'sessions', 'tour_departures', 'tour_guide_assignments', 'tour_media', 'tours', 'users', 'verifications')
         ORDER BY table_name
       `);
       expect(after.rows).toEqual([
@@ -71,6 +71,7 @@ describe('PostgreSQL persistence infrastructure', () => {
         { table_name: 'audit_events' },
         { table_name: 'job_effects' },
         { table_name: 'outbox_messages' },
+        { table_name: 'reviews' },
         { table_name: 'sessions' },
         { table_name: 'tour_departures' },
         { table_name: 'tour_guide_assignments' },
@@ -304,7 +305,7 @@ describe('PostgreSQL persistence infrastructure', () => {
       ORDER BY schema_name
     `);
 
-    expect(purgedTables).toBe(17);
+    expect(purgedTables).toBe(18);
     expect(records.rows[0]?.count).toBe('0');
     expect(migrationSchemas.rows.map(row => row.schema_name)).toEqual([
       'drizzle',

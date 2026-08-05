@@ -150,7 +150,18 @@ event contract accepts paid `checkout.session.completed`, `checkout.session.expi
 refunded `charge.refunded`; unrelated event types are acknowledged without mutation. Provider,
 booking, payment, currency, and amount mismatches return a conflict without consuming event state.
 
-Review creation requires a confirmed purchased departure in the past. Updates and deletes require ownership. Tour and departure deletion is soft deletion; deleted resources disappear from normal binding while history remains.
+Review routes are `GET|POST /tours/{tourId}/reviews` and
+`GET|PATCH|DELETE /tours/{tourId}/reviews/{reviewId}`. The collection uses `page`/`limit` and stable
+`createdAt DESC, id DESC` ordering. A review contains `id`, `tourId`, integer `rating`, normalized
+`text`, `user: { id, name }`, `createdAt`, and `updatedAt`.
+
+Public review reads bind active, non-deleted tours and remain cache-compatible. Creation accepts
+`rating` and `text` and requires the customer role plus any caller-owned, confirmed booking for the
+tour whose immutable snapshotted departure is strictly in the past. Inactive tours remain
+reviewable; soft-deleted tours do not. Updates accept at least one of `rating` and `text`; deletes
+return `204` and hard-delete immediately. Missing and foreign protected reviews both return `404`,
+failed qualification returns `422 REVIEW_NOT_QUALIFIED`, and duplicates return
+`409 REVIEW_ALREADY_EXISTS`.
 
 ## Status and errors
 
@@ -160,7 +171,7 @@ Review creation requires a confirmed purchased departure in the past. Updates an
 - `204`: successful no-content mutation.
 - `400`: malformed input, validation failure, or unsupported query capability.
 - `401`: missing, malformed, expired, or revoked token.
-- `403`: missing permission or ownership.
+- `403`: missing permission or an ineligible application role.
 - `404`: unknown, deleted, inactive where applicable, or wrongly nested resource.
 - `405`: unregistered method.
 - `422`: domain-rule failure when an endpoint defines that distinction.
@@ -172,6 +183,10 @@ Better Auth endpoints use their native status codes and error bodies. The genera
 
 ## Rate limits and caching
 
-Apply a global API limiter, plus narrower cumulative limits for registration, login, verification, account updates, password recovery, and Stripe events. Guests are keyed by IP and authenticated callers by user UUID. Store distributed counters in Redis and coordinate the policy with Better Auth's authentication-specific limiter.
+Apply a global API limiter, plus narrower cumulative limits for registration, login, verification,
+account updates, password recovery, review writes, and Stripe events. Review POST/PATCH/DELETE
+requests allow 20 attempts per authenticated user per 60 seconds with a 60-second block. Guests are
+keyed by IP and authenticated callers by user UUID. Store distributed counters in Redis and
+coordinate the policy with Better Auth's authentication-specific limiter.
 
 Sensitive responses use `Cache-Control: no-store, private` and `Pragma: no-cache`. Logs and tracing redact credentials, authorization headers, session tokens, and verification/recovery values.

@@ -47,6 +47,12 @@ RATE_LIMIT_AUTH_BLOCK_MS=300000
 RATE_LIMIT_ACCOUNT_LIMIT=30
 RATE_LIMIT_ACCOUNT_TTL_MS=60000
 RATE_LIMIT_ACCOUNT_BLOCK_MS=60000
+RATE_LIMIT_BOOKING_LIMIT=20
+RATE_LIMIT_BOOKING_TTL_MS=60000
+RATE_LIMIT_BOOKING_BLOCK_MS=60000
+RATE_LIMIT_REVIEW_LIMIT=20
+RATE_LIMIT_REVIEW_TTL_MS=60000
+RATE_LIMIT_REVIEW_BLOCK_MS=60000
 RATE_LIMIT_WEBHOOK_LIMIT=120
 RATE_LIMIT_WEBHOOK_TTL_MS=60000
 RATE_LIMIT_WEBHOOK_BLOCK_MS=60000
@@ -219,7 +225,10 @@ configuration is present.
 
 ## Rate limiting and sensitive data
 
-Use Redis for distributed counters and job coordination. Key guests by trusted client IP and authenticated callers by user UUID. Apply narrower cumulative limits to authentication, recovery, account mutation, and webhooks without bypassing Better Auth's own protections.
+Use Redis for distributed counters and job coordination. Key guests by trusted client IP and
+authenticated callers by user UUID. Apply narrower cumulative limits to authentication, recovery,
+account mutation, booking and review writes, and webhooks without bypassing Better Auth's own
+protections. Review writes default to 20 requests per user per minute with a one-minute block.
 
 Apply no-store headers to sessions and sensitive account or booking data. Redact passwords, confirmations, current passwords, verification/recovery tokens, authorization headers, cookie values, Better Auth secrets, session tokens, Stripe secrets, storage credentials, and database URLs from logs, traces, error reporting, and audit records.
 
