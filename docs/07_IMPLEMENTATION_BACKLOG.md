@@ -297,11 +297,11 @@ Supports merchandising, staffing, and demand planning without exposing operation
 
 ### Scope and subtasks
 
-- [ ] Resolve the analytics contract questions before implementation and add the approved definitions to the API/domain specifications.
-- [ ] Define permission-protected ranking, aggregate-statistics, and monthly-plan endpoints/resources in OpenAPI.
-- [ ] Implement deterministic PostgreSQL queries over active/deleted tours, departures, bookings, cancellations, revenue, capacity, and ratings according to the approved inclusion rules.
-- [ ] Apply UTC boundaries, stable ordering, validated filters, sparse output only where approved, and safe empty-result behavior.
-- [ ] Add `tours.view-analytics` authorization, bounded query plans/indexes, operational timing logs, and tests against realistic fixtures.
+- [x] Resolve the analytics contract questions before implementation and add the approved definitions to the API/domain specifications.
+- [x] Define permission-protected ranking, aggregate-statistics, and monthly-plan endpoints/resources in OpenAPI.
+- [x] Implement deterministic PostgreSQL queries over active/deleted tours, departures, bookings, cancellations, revenue, capacity, and ratings according to the approved inclusion rules.
+- [x] Apply UTC boundaries, stable ordering, validated filters, sparse output only where approved, and safe empty-result behavior.
+- [x] Add `tours.view-analytics` authorization, bounded query plans/indexes, operational timing logs, and tests against realistic fixtures.
 
 ### Acceptance criteria
 

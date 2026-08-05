@@ -76,6 +76,27 @@ soft-deleted tour does not. Missing and foreign protected reviews are indistingu
 
 Reviews are hard-deleted. Every mutation locks the tour and recomputes count and average transactionally. An unreviewed tour has a null average and zero count; otherwise the average is rounded to two decimals.
 
+## Tour analytics
+
+Analytics are administrator-only and use PostgreSQL source rows rather than cached counters. Historical
+rankings and statistics accept required UTC calendar dates as a half-open departure interval: `from`
+is inclusive and `to` is exclusive, with a maximum span of 366 days. They include soft-deleted or
+inactive tours and departures so later
+catalog changes do not rewrite history. Realized demand and revenue include only bookings whose current
+status is `confirmed`; cancelled, expired, pending, and cancellation-recovery states contribute nothing.
+Revenue is the sum of snapshotted booking totals in USD cents.
+
+Rankings contain only tours with confirmed bookings in the interval and order by revenue descending,
+traveler count descending, current rating descending with unrated tours last, then tour UUID ascending.
+Statistics count every scheduled departure in the interval, including deleted or inactive rows, and
+derive capacity from its current available plus reserved inventory. Empty intervals return zero totals
+and a null average booking value.
+
+The monthly plan accepts one UTC year and is deliberately sparse: months without eligible departures
+are omitted. It includes only active, non-deleted tours and departures, orders months ascending, and
+reports scheduled capacity, reserved inventory, and confirmed demand and revenue. It is an operational
+planning view, not a historical accounting statement.
+
 Review mutations are not audit events. Review content and purchaser identity are deliberately not
 copied into the administrative audit ledger.
 

@@ -43,7 +43,7 @@ describe('PostgreSQL persistence infrastructure', () => {
         AND column_name = 'label'
     `);
 
-    expect(productionHistory.rows[0]?.count).toBe('9');
+    expect(productionHistory.rows[0]?.count).toBe('10');
     expect(fixtureHistory.rows[0]?.count).toBe('2');
     expect(upgradedColumn.rows).toEqual([{ column_name: 'label' }]);
   });

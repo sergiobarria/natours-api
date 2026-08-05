@@ -105,6 +105,11 @@ export const bookings = pgTable(
       table.status,
       table.holdExpiresAt,
     ),
+    index(databaseObjectName('bookings', ['status', 'departure_start_at', 'tour_id'], 'idx')).on(
+      table.status,
+      table.departureStartAt,
+      table.tourId,
+    ),
   ],
 );
 

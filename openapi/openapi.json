@@ -481,6 +481,169 @@
         "tags": ["stripe"]
       }
     },
+    "/api/v1/tour-analytics/monthly-plan": {
+      "get": {
+        "operationId": "AnalyticsController_monthlyPlan_v1",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "months": {
+                      "items": {
+                        "properties": {
+                          "capacity": { "minimum": 0, "type": "integer" },
+                          "confirmedBookings": {
+                            "minimum": 0,
+                            "type": "integer"
+                          },
+                          "departureCount": { "minimum": 1, "type": "integer" },
+                          "month": {
+                            "maximum": 12,
+                            "minimum": 1,
+                            "type": "integer"
+                          },
+                          "reservedSpots": { "minimum": 0, "type": "integer" },
+                          "revenueCents": { "minimum": 0, "type": "integer" },
+                          "travelers": { "minimum": 0, "type": "integer" }
+                        },
+                        "required": [
+                          "month",
+                          "departureCount",
+                          "capacity",
+                          "reservedSpots",
+                          "confirmedBookings",
+                          "travelers",
+                          "revenueCents"
+                        ],
+                        "type": "object"
+                      },
+                      "type": "array"
+                    },
+                    "year": {
+                      "maximum": 2100,
+                      "minimum": 2000,
+                      "type": "integer"
+                    }
+                  },
+                  "required": ["year", "months"],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Active scheduled capacity and confirmed demand by month."
+          }
+        },
+        "security": [{ "bearerAuth": [] }],
+        "summary": "Get sparse monthly operating plan for a UTC year",
+        "tags": ["tour-analytics"]
+      }
+    },
+    "/api/v1/tour-analytics/rankings": {
+      "get": {
+        "operationId": "AnalyticsController_rankings_v1",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "properties": {
+                      "confirmedBookings": { "minimum": 1, "type": "integer" },
+                      "rank": { "minimum": 1, "type": "integer" },
+                      "ratingAverage": {
+                        "maximum": 5,
+                        "minimum": 1,
+                        "nullable": true,
+                        "type": "number"
+                      },
+                      "ratingCount": { "minimum": 0, "type": "integer" },
+                      "revenueCents": { "minimum": 0, "type": "integer" },
+                      "tour": {
+                        "properties": {
+                          "id": { "format": "uuid", "type": "string" },
+                          "isActive": { "type": "boolean" },
+                          "isDeleted": { "type": "boolean" },
+                          "name": { "type": "string" }
+                        },
+                        "required": ["id", "name", "isActive", "isDeleted"],
+                        "type": "object"
+                      },
+                      "travelers": { "minimum": 1, "type": "integer" }
+                    },
+                    "required": [
+                      "rank",
+                      "tour",
+                      "confirmedBookings",
+                      "travelers",
+                      "revenueCents",
+                      "ratingAverage",
+                      "ratingCount"
+                    ],
+                    "type": "object"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Revenue-first tour rankings."
+          }
+        },
+        "security": [{ "bearerAuth": [] }],
+        "summary": "Rank tours by realized revenue for a UTC departure interval",
+        "tags": ["tour-analytics"]
+      }
+    },
+    "/api/v1/tour-analytics/statistics": {
+      "get": {
+        "operationId": "AnalyticsController_statistics_v1",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "averageBookingValueCents": {
+                      "minimum": 0,
+                      "nullable": true,
+                      "type": "integer"
+                    },
+                    "capacity": { "minimum": 0, "type": "integer" },
+                    "confirmedBookings": { "minimum": 0, "type": "integer" },
+                    "departures": { "minimum": 0, "type": "integer" },
+                    "from": { "format": "date", "type": "string" },
+                    "revenueCents": { "minimum": 0, "type": "integer" },
+                    "to": { "format": "date", "type": "string" },
+                    "tours": { "minimum": 0, "type": "integer" },
+                    "travelers": { "minimum": 0, "type": "integer" }
+                  },
+                  "required": [
+                    "from",
+                    "to",
+                    "tours",
+                    "departures",
+                    "capacity",
+                    "confirmedBookings",
+                    "travelers",
+                    "revenueCents",
+                    "averageBookingValueCents"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Historical departure, demand, and revenue totals."
+          }
+        },
+        "security": [{ "bearerAuth": [] }],
+        "summary": "Get aggregate tour statistics for a UTC departure interval",
+        "tags": ["tour-analytics"]
+      }
+    },
     "/api/v1/tours": {
       "get": {
         "operationId": "ToursController_list_v1",

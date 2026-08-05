@@ -119,6 +119,14 @@ options.
 | Stripe webhook | `/stripe/webhook`             | Signed event ingestion with a dedicated limit                         |
 | Analytics      | `/tour-analytics/*`           | Protected rankings, statistics, and monthly plan                      |
 
+Analytics endpoints require `tours.view-analytics`. `GET /tour-analytics/rankings` and
+`GET /tour-analytics/statistics` require `from` and `to` in `YYYY-MM-DD` form and apply the documented
+half-open UTC departure interval, limited to 366 days. Rankings also accept `limit` from 1 through 100
+(default 20).
+`GET /tour-analytics/monthly-plan` requires a four-digit `year` from 2000 through 2100 and returns only
+months with active scheduled departures. Historical results retain deleted resources and count only
+currently confirmed bookings; the monthly plan includes only active, non-deleted tours and departures.
+
 Departure operations use `GET|POST /tours/{tourId}/start-dates` and
 `PATCH|DELETE /tours/{tourId}/start-dates/{departureId}`. The public collection is chronological
 and omits reserved inventory. Writes accept `startAt`, `availableSpots`, and `isActive`; reserved
