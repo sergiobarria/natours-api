@@ -154,6 +154,11 @@ export const tourDepartures = pgTable(
       table.startAt,
       table.id,
     ),
+    index(databaseObjectName('tour_departures', ['start_at', 'is_active', 'deleted_at'], 'idx')).on(
+      table.startAt,
+      table.isActive,
+      table.deletedAt,
+    ),
     check(
       databaseObjectName('tour_departures', 'available_spots', 'check'),
       sql`${table.availableSpots} >= 0`,

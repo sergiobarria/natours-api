@@ -64,6 +64,13 @@
       "when": 1785809986099,
       "tag": "0008_qualified_reviews",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1785897919787,
+      "tag": "0009_tour_analytics_indexes",
+      "breakpoints": true
     }
   ]
 }

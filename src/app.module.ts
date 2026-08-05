@@ -14,6 +14,7 @@ import { UsersModule } from './users/users.module.js';
 import { ToursModule } from './tours/tours.module.js';
 import { StorageModule } from './storage/storage.module.js';
 import { BookingsModule } from './bookings/bookings.module.js';
+import { AnalyticsModule } from './analytics/analytics.module.js';
 import { ReviewsModule } from './reviews/reviews.module.js';
 
 @Module({
@@ -28,6 +29,7 @@ import { ReviewsModule } from './reviews/reviews.module.js';
     StorageModule,
     ToursModule,
     BookingsModule,
+    AnalyticsModule,
     ReviewsModule,
     LoggerModule.forRootAsync({
       imports: [AppConfigModule],

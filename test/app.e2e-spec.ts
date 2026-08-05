@@ -534,6 +534,29 @@ describe('application foundation (e2e)', () => {
     await database.update(users).set({ role: 'admin' }).where(eq(users.id, authenticatedUserId));
   });
 
+  it('protects analytics and validates its UTC contract before querying', async () => {
+    await request(httpServer)
+      .get('/api/v1/tour-analytics/statistics?from=2026-01-01&to=2027-01-01')
+      .expect(401);
+    await database.update(users).set({ role: 'user' }).where(eq(users.id, authenticatedUserId));
+    await request(httpServer)
+      .get('/api/v1/tour-analytics/statistics?from=2026-01-01&to=2027-01-01')
+      .set('authorization', `Bearer ${authenticatedToken}`)
+      .expect(403);
+
+    await database.update(users).set({ role: 'admin' }).where(eq(users.id, authenticatedUserId));
+    await request(httpServer)
+      .get('/api/v1/tour-analytics/statistics?from=2027-01-01&to=2026-01-01')
+      .set('authorization', `Bearer ${authenticatedToken}`)
+      .expect(400);
+    const response = await request(httpServer)
+      .get('/api/v1/tour-analytics/monthly-plan?year=2027')
+      .set('authorization', `Bearer ${authenticatedToken}`)
+      .expect(200)
+      .expect(response => expect(response.body).toMatchObject({ data: { year: 2027 } }));
+    expect(response.headers['cache-control']).toBe('no-store, private');
+  });
+
   it('confirms a paid booking only through a matching signed webhook', async () => {
     const tourId = randomUUID();
     const departureId = randomUUID();
